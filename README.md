@@ -53,12 +53,25 @@ with the standard interfaces for flat_map and pure. There is no restriction that
 * flat_map: Callable that takes a value, and returns a value wrapped in the same context.
 * pure: Constructor that takes a value and wraps it in a context.
 
-That said... here is a basic working Maybe example (using attrs):
+That said... here is a basic Maybe example (using attrs):
 
 ```python
 
 @attr.s
-def Just:
+def Nothing:
+    """ Represents the lack of a value """
+    def map(self, func):
+    	return self
+
+    def flat_map(self, func):
+    	return self
+
+    def __iter__(self): # Expose interface to do notation
+        yield self.flat_map
+	yield self.__class__
+
+@attr.s
+def Just(Nothing):
     """ Represents an existing value """
     value = attr.ib()
 
@@ -68,18 +81,6 @@ def Just:
     def flat_map(self, func):
         return func(self.value)
 
-    def __iter__(self): # Expose interface to do notation
-        yield self.flat_map
-	yield self.__class__
-
-@attr.s
-def Nothing(Just):
-    """ Represents the lack of a value """
-    def map(self, func):
-    	return self
-
-    def flat_map(self, func):
-    	return self
 ```
 
 ```python
@@ -91,6 +92,15 @@ value = do(
     for v3 in Just(3)
 )
 assert value == Just(6)
+
+value = do(
+    v1 + v2 + v3
+    for v1 in Just(1)
+    for v2 in Nothing()
+    for v3 in Just(3)
+)
+assert value == Nothing()
+	
 ```
 
 Equal to:
@@ -103,4 +113,50 @@ value = Just(1).flat_map(lambda v1:
 	)
     )
 )
+```
+
+Or dependency injection with Reader:
+
+```python
+
+@attr.s
+class Reader:
+    func = attr.ib()
+
+    @classmethod
+    def pure(cls, value):
+        return cls(lambda _: value)
+
+    def map(self, func):
+        return self.__class__(lambda env: func(self.func(env)))
+
+    def flat_map(self, func):
+        return self.__class__(lambda env: func(self.func(env)).run(env))
+
+    def run(self, env):
+        return self.func(env)
+
+    @classmethod
+    def ask(cls):
+    	""" Request the dependency """
+        return cls(lambda env: env)
+
+    def __iter__(self): # Expose interface to do notation
+    	yield self.flat_map
+	yield self.pure
+
+
+def fullname(firstname):
+    return do(
+        "{} {}".format(firstname, lastname)
+	for lastname in Reader.ask()
+    )
+
+people = do(
+    "{} and {}".format(joe, joanne)
+    for joe in fullname("Joe")
+    for joanne in fullname("Joanne")
+).run("Bloggs")
+assert people == "Joe Bloggs and Joanne Bloggs"
+
 ```

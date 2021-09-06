@@ -28,6 +28,29 @@ class Just(Nothing):
         return func(self.val)
 
 
+class Reader:
+
+    def __init__(self, val):
+        self._func = val if callable(val) else lambda _: val
+
+    def map(self, func):
+        return self.__class__(lambda env: func(self._func(env)))
+
+    def flat_map(self, func):
+        return self.__class__(lambda env: func(self._func(env)).run(env))
+
+    def run(self, env):
+        return self._func(env)
+
+    @classmethod
+    def ask(cls):
+        return cls(lambda env: env)
+
+    def __iter__(self):
+        yield self.flat_map
+        yield self.__class__
+
+
 class TestDoNot(unittest.TestCase):
 
     def test_simple(self):
@@ -162,6 +185,19 @@ class TestDoNot(unittest.TestCase):
         )
         self.assertEqual(val, Just("1-2-3-4-10"))
 
+    def test_env(self):
+        def add_name(name):
+            return do(
+                "{} {}".format(name, lastname)
+                for lastname in Reader.ask()
+            )
+
+        val = do(
+            "{} and {}".format(name1, name2)
+            for name1 in add_name("Joe")
+            for name2 in add_name("Joanne")
+        ).run("Bloggs")
+        self.assertEqual(val, "Joe Bloggs and Joanne Bloggs")
 
 if __name__ == "__main__":
     unittest.main()
