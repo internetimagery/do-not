@@ -52,3 +52,56 @@ with the standard interfaces for flat_map and pure. There is no restriction that
 
 * flat_map: Callable that takes a value, and returns a value wrapped in the same context.
 * pure: Constructor that takes a value and wraps it in a context.
+
+That said... here is a basic working Maybe example (using attrs):
+
+```python
+
+@attr.s
+def Nothing:
+    """ Represents the lack of a value """
+    def map(self, func):
+    	return self
+
+    def flat_map(self, func):
+    	return self
+
+    def __iter__(self): # Expose interface to do notation
+        yield self.flat_map
+	yield self.__class__
+
+@attr.s
+def Just(Nothing):
+    """ Represents an existing value """
+    value = attr.ib()
+
+    def map(self, func):
+        return self.__class__(func(self.value))
+
+    def flat_map(self, func):
+        return func(self.value)
+
+```
+
+```python
+
+value = do(
+    v1 + v2 + v3
+    for v1 in Just(1)
+    for v2 in Just(2)
+    for v3 in Just(3)
+)
+assert value == Just(6)
+```
+
+Equal to:
+
+```python
+value = Just(1).flat_map(lambda v1:
+    Just(2).flat_map(lambda v2:
+        Just(3).flat_map(lambda v3:
+	    v1 + v2 + v3
+	)
+    )
+)
+```
