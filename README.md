@@ -35,6 +35,12 @@ asset_type = do(
 
 ```
 
+TODO: Find a better way to generically handle if statements in the body. Having it work like a case statement
+(as it currently is) is useful in some situations. However it's more likely useful to have a meaningful return
+value instead. Some monads like Maybe/Either support switching to their alternate path, but for many others it makes
+no sense. A possible solution could be a second argument to "do" that acts as a fallback default. Or for the monad
+to expose another interface that handles this for us (and we use that instead of "pure" where available).
+
 > How can I use this for myself?
 
 This library does not bundle an implimentation of Monads itself, by design. Instead it
@@ -160,3 +166,18 @@ people = do(
 assert people == "Joe Bloggs and Joanne Bloggs"
 
 ```
+
+----
+
+[Another similar approach using the AST and Haskell-like bind operator.](https://gist.github.com/internetimagery/7012246ac8aae8fa5e185f634db60582)
+
+```python
+@do
+def add_em():
+    num1 <<= Just(10)
+    num2 <<= Just(20)
+    return num1 + num2
+assert add_em() == Just(30)
+```
+
+[GenMonads; A similar and inspirational project.](https://github.com/underspecified/GenMonads)
