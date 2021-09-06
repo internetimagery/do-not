@@ -401,6 +401,8 @@ def _clone_code(code, bytecode, consts, varnames, argcount):
     )
     if PY2:
         args = args[:1] + args[3:]
+    elif not PY38:
+        args = args[:1] + args[2:]
 
     return CodeType(*args)
 
