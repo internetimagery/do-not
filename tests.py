@@ -162,3 +162,7 @@ class TestDoNot(unittest.TestCase):
         )
         self.assertEqual(val, Just("1-2-3-4-10"))
 
+
+if __name__ == "__main__":
+    unittest.main()
+

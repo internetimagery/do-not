@@ -36,6 +36,9 @@ else:
     as_byte = lambda x: x
 
 
+__all__ = ("do",)
+
+
 # Retain our processed code to save on code recalls
 _cache = WeakKeyDictionary()
 
