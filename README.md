@@ -1,6 +1,6 @@
 # Python meets do notation [![Build Status](https://app.travis-ci.com/internetimagery/do-not.svg?branch=main)](https://app.travis-ci.com/internetimagery/do-not)
 
-Monaic do notation with python for comprehensions
+Monaic do notation with python for comprehensions. Currently tested on python 2.7, 3.6 ~ 3.9.
 
 A simple repurposing of the generator comprehension to serve as do notation / for comprehension.
 
