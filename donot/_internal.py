@@ -21,20 +21,24 @@
 import sys
 
 PY2 = sys.version_info[0] == 2
+PY38 = sys.version_info[0] == 3 and sys.version_info[1] >= 8
 
 import dis
 import inspect
 from weakref import WeakKeyDictionary
 from types import CodeType, FunctionType
+
 if PY2:
-    CellType = lambda v: (lambda: v).func_closure[0]
     to_bytes = lambda a: bytes(bytearray(a))
     as_byte = ord
 else:
-    from types import CellType
     to_bytes = bytes
     as_byte = lambda x: x
 
+if PY38:
+    from types import CellType
+else:
+    CellType = lambda v: (lambda: v).__closure__[0]
 
 __all__ = ("do",)
 
