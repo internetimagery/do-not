@@ -58,20 +58,7 @@ That said... here is a basic working Maybe example (using attrs):
 ```python
 
 @attr.s
-def Nothing:
-    """ Represents the lack of a value """
-    def map(self, func):
-    	return self
-
-    def flat_map(self, func):
-    	return self
-
-    def __iter__(self): # Expose interface to do notation
-        yield self.flat_map
-	yield self.__class__
-
-@attr.s
-def Just(Nothing):
+def Just:
     """ Represents an existing value """
     value = attr.ib()
 
@@ -81,6 +68,18 @@ def Just(Nothing):
     def flat_map(self, func):
         return func(self.value)
 
+    def __iter__(self): # Expose interface to do notation
+        yield self.flat_map
+	yield self.__class__
+
+@attr.s
+def Nothing(Just):
+    """ Represents the lack of a value """
+    def map(self, func):
+    	return self
+
+    def flat_map(self, func):
+    	return self
 ```
 
 ```python
