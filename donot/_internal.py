@@ -125,16 +125,43 @@ def do(generator):
         code_iter = _unpack_opargs(code.co_code)
         assert LOAD_FAST == next(code_iter)[1] # skip first command
         cached_code, _ = _cache[code], _ = _extract_code(code, code_iter)
+        dis.dis(cached_code)
 
     func = FunctionType(
         cached_code,  # The code itself
         generator.gi_frame.f_globals,  # globals dict
         "<do_block>",  # name of func
-        (pure,),
+        #(pure,),
+        (_get_interface_callable,),
         tuple(CellType(generator.gi_frame.f_locals[v]) for v in code.co_freevars),
     )
     return flat_map(func)
 
+def _get_interface_callable(interface, func, name):
+    """
+    """
+    try:
+        iter_face = iter(interface)
+    except TypeError as err:
+        raise TypeError(
+            "{}, please use a monad that supports iterating through its interface".format(err)
+        )
+    try:
+        flat_map = next(iter_face)
+    except StopIteration:
+        raise TypeError(
+            "Monad interface {} does not support flat_map. Please check it yields its interface".format(interface),
+        )
+    print(interface, name)
+    if name == "flat_map":
+        return flat_map(func)
+    try:
+        pure = next(iter_face)
+    except StopIteration:
+        raise TypeError(
+            "Monad interface {} does not support flat_map. Please check it yields its interface".format(interface),
+        )
+    return pure(value)
 
 STORE_FAST = dis.opmap["STORE_FAST"]
 LOAD_FAST = dis.opmap["LOAD_FAST"]
@@ -227,8 +254,8 @@ else:
 
         # Finally tack on our nested function creation and call.
         # Adding in a spot where we can short circut and return should we need to.
-        add_op(LOAD_CONST, len(code.co_consts))  # Code object for nested code
-        add_op(LOAD_CONST, len(code.co_consts) + 1)  # Code name for nested code
+        add_op(LOAD_CONST, len(code.co_consts) + 1)  # Code object for nested code
+        add_op(LOAD_CONST, len(code.co_consts) + 2)  # Code name for nested code
         add_op(MAKE_FUNCTION, 9 if code.co_freevars else 1)  # 9 = closure+defaults, 1 = defaults
 
 
@@ -297,17 +324,25 @@ def _extract_code(code, byte_iter):
                 for i, s in enumerate(stack)
             ]
 
+            add_op(STORE_FAST, 0)
+
+            add_op(LOAD_FAST, 1)
+
+            add_op(LOAD_FAST, 0)
+
             # Request the flat_map interface from the provided monad.
             # Since we don't know exactly how big our stack will be; Mark the jump point as
             # something invalid, and we will fix it later.
             add_op(GET_ITER)
-            for_index = len(stack) + 1 # Store for alteration later
-            add_op(FOR_ITER, -99)
-            post_for_index = len(stack)
+            #for_index = len(stack) + 1 # Store for alteration later
+            #add_op(FOR_ITER, -99)
+            #post_for_index = len(stack)
 
             _make_function(add_op, code, nested_defaults, var_layout)
 
-            add_op(CALL_FUNCTION, 1)  # 1 = Num arguments from the stack. Always one in our case.
+            add_op(LOAD_CONST, len(code.co_consts))
+
+            add_op(CALL_FUNCTION, 3)  # 1 = Num arguments from the stack. Always one in our case.
             # Fallback for if statements that need to break out
             jump_index = len(stack) + 1
             add_op(JUMP_FORWARD, -99) # Jump over the fallback
@@ -326,7 +361,7 @@ def _extract_code(code, byte_iter):
                 for i, s in enumerate(stack)
             ]
             stack[jump_index] = return_index - fallback_index
-            stack[for_index] = fallback_index - post_for_index
+            #stack[for_index] = fallback_index - post_for_index
             return _clone_code(code, to_bytes(stack), (nested_code, "<generated>"), var_layout, num_args), defaults
 
         # Found end of iterator
@@ -389,7 +424,7 @@ def _clone_code(code, bytecode, consts, varnames, argcount):
         max(code.co_stacksize, len(varnames)) + 1,
         inspect.CO_OPTIMIZED | inspect.CO_NEWLOCALS | inspect.CO_NESTED,
         bytecode,
-        code.co_consts + consts, # Add our nested function as constant
+        code.co_consts + ("flat_map",) + consts, # Add our nested function as constant
         code.co_names,
         varnames,
         code.co_filename,

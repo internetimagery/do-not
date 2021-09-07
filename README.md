@@ -35,12 +35,6 @@ asset_type = do(
 
 ```
 
-TODO: Find a better way to generically handle if statements in the body. Having it work like a case statement
-(as it currently is) is useful in some situations. However it's more likely useful to have a meaningful return
-value instead. Some monads like Maybe/Either support switching to their alternate path, but for many others it makes
-no sense. A possible solution could be a second argument to "do" that acts as a fallback default. Or for the monad
-to expose another interface that handles this for us (and we use that instead of "pure" where available).
-
 > How can I use this for myself?
 
 This library does not bundle an implimentation of Monads itself, by design. Instead it
@@ -181,3 +175,24 @@ assert add_em() == Just(30)
 ```
 
 [GenMonads; A similar and inspirational project.](https://github.com/underspecified/GenMonads)
+
+----
+
+TODO: Find a better way to generically handle if statements in the body. Having it work like a case statement
+(as it currently is) is useful in some situations. However it's more likely useful to have a meaningful return
+value instead. Some monads like Maybe/Either support switching to their alternate path, but for many others it makes
+no sense. A possible solution could be a second argument to "do" that acts as a fallback default. Or for the monad
+to expose another interface that handles this for us (and we use that instead of "pure" where available).
+
+Scala uses "withFilter" and if you don't support that, you're not using that monad. Perhaps that is the way forward here too...
+though not many monads can make use of it.
+
+Also guards can exist as expressions... eg
+
+```python
+val = do(
+    v1 + v2
+    for v1 in Just(10)
+    for v2 in Just(11) if v1 else Nothing()
+)
+```
