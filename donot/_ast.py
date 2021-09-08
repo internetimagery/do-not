@@ -14,11 +14,11 @@ FOR_ITER = dis.opmap["FOR_ITER"]
 YIELD_VALUE = dis.opmap["YIELD_VALUE"]
 
 
-Inputs = namedtuple("Inputs", ("names", "start", "stop"))
-Guard = namedtuple("Guard", ("names", "state", "start", "stop"))
-Expression = namedtuple("Expression", ("names", "start", "stop"))
-FinalExpression = namedtuple("FinalExpression", ("names", "start", "stop"))
-Execution = namedtuple("Execution", ("operations"))
+Inputs = namedtuple("Inputs", ("names", "start", "stop", "stack"))
+Guard = namedtuple("Guard", ("names", "state", "start", "stop", "stack"))
+Expression = namedtuple("Expression", ("names", "start", "stop", "stack"))
+FinalExpression = namedtuple("FinalExpression", ("names", "start", "stop", "stack"))
+Execution = namedtuple("Execution", ("inputs", "guards", "expression"))
 
 
 def parse(code):
@@ -41,23 +41,24 @@ def parse(code):
     operations = []
     for operation in _parse_inputs(code, iter_bytes):
         if operations and isinstance(operation, Inputs):
-            yield Execution(tuple(operations))
+            yield Execution(operations[0], tuple(operations[1:-1]), operations[-1])
             operations = []
         operations.append(operation)
-    if operations:
-        yield Execution(tuple(operations))
+    yield Execution(operations[0], tuple(operations[1:-1]), operations[-1])
 
 
 def _parse_inputs(code, iter_bytes):
     assert next(iter_bytes)[1] == FOR_ITER
     inputs = []
+    bytestack = []
     num_unpack = 1
     start_offset = end_offset = 0
     while num_unpack:
         num_unpack -= 1
 
         (i, op, arg) = next(iter_bytes)
-        end_offset = i + _offset(op)
+        add_op(bytestack, op, arg)
+        end_offset = i + op_offset(op)
         if not start_offset:
             start_offset = i
         if op == STORE_FAST:
@@ -66,7 +67,7 @@ def _parse_inputs(code, iter_bytes):
             num_unpack += arg
         else:
             raise AssertionError("Unexpected operation {}".format(dis.opname[op]))
-    yield Inputs(tuple(inputs), start_offset, end_offset)
+    yield Inputs(inputs, start_offset, end_offset, add_op([], LOAD_FAST, 0) + bytestack)
     for expr in _parse_expression(code, iter_bytes):
         yield expr
 
@@ -74,6 +75,7 @@ def _parse_inputs(code, iter_bytes):
 def _parse_expression(code, iter_bytes):
     names = set()
     start_offset = end_offset = 0
+    bytestack = []
     for idx, op, arg in iter_bytes:
         end_offset = idx
         if not start_offset:
@@ -83,30 +85,42 @@ def _parse_expression(code, iter_bytes):
             names.add(code.co_varnames[arg])
 
         if op == GET_ITER:
-            yield Expression(tuple(names), start_offset, end_offset)
+            yield Expression(names, start_offset, end_offset, bytestack)
             for var in _parse_inputs(code, iter_bytes):
                 yield var
             return
 
         if op == YIELD_VALUE:
             # We are at the end!
-            yield FinalExpression(tuple(names), start_offset, end_offset)
+            yield FinalExpression(names, start_offset, end_offset, bytestack)
             return
 
         if op in dis.hasjabs and FOR_ITER == as_byte(code.co_code[arg]):
             yield Guard(
-                tuple(names), "TRUE" in dis.opname[op], start_offset, end_offset
+                names,
+                "TRUE" in dis.opname[op],
+                start_offset,
+                end_offset,
+                bytestack,
             )
             for expr in _parse_expression(code, iter_bytes):
                 yield expr
             return
+        add_op(bytestack, op, arg)
 
 
 # Lifted from dis.disassemble
 if PY2 or PY35:
     as_byte = ord
 
-    def _offset(op):
+    def add_op(stack, operation, arg=None):
+        if arg is None:
+            stack.append(operation)
+        else:
+            stack.extend((operation, arg, 0))
+        return stack
+
+    def op_offset(op):
         if op >= dis.HAVE_ARGUMENT:
             return 3
         return 1
@@ -133,7 +147,11 @@ if PY2 or PY35:
 else:
     as_byte = int
 
-    def _offset(op):
+    def add_op(stack, operation, arg=0):
+        stack.extend((operation, arg))
+        return stack
+
+    def op_offset(op):
         return 2
 
     def _unpack_opargs(code):
