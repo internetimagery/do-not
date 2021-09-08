@@ -12,6 +12,7 @@ UNPACK_SEQUENCE = dis.opmap["UNPACK_SEQUENCE"]
 GET_ITER = dis.opmap["GET_ITER"]
 FOR_ITER = dis.opmap["FOR_ITER"]
 YIELD_VALUE = dis.opmap["YIELD_VALUE"]
+RETURN_VALUE = dis.opmap["RETURN_VALUE"]
 
 
 Inputs = namedtuple("Inputs", ("names", "start", "stop", "stack"))
@@ -92,6 +93,7 @@ def _parse_expression(code, iter_bytes):
 
         if op == YIELD_VALUE:
             # We are at the end!
+            add_op(bytestack, RETURN_VALUE)
             yield FinalExpression(names, start_offset, end_offset, bytestack)
             return
 

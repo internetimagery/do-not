@@ -43,11 +43,31 @@ def compile_(code):
 def compile_execution(code, execution):
     for guard in execution.guards:
         compile_guard(code, execution.inputs, guard)
+    if isinstance(execution.expression, FinalExpression):
+        compile_final(code, execution.inputs, execution.expression)
+
+
+def compile_final(code, inputs, expression):
+    defaults = tuple(a for a in expression.names if a not in inputs.names)
+    layout = tuple(chain((".0",), defaults, inputs.names))
+
+    updated_inputs = _retarget_locals(code.co_varnames, layout, inputs.stack)
+    updated_expression = _retarget_locals(code.co_varnames, layout, expression.stack)
+    new_code = _clone_code(
+        code,
+        chain(updated_inputs, updated_expression),
+        (),
+        layout,
+        len(defaults) + 1,
+    )
+    dis.dis(new_code)
+    return new_code
 
 
 def compile_guard(code, inputs, guard):
+    """Create code out of a guard"""
     defaults = tuple(a for a in guard.names if a not in inputs.names)
-    layout = tuple(chain((".0",), inputs.names, defaults))
+    layout = tuple(chain((".0",), defaults, inputs.names))
 
     updated_inputs = _retarget_locals(code.co_varnames, layout, inputs.stack)
     updated_guard = _retarget_locals(code.co_varnames, layout, guard.stack)
@@ -69,7 +89,7 @@ def compile_guard(code, inputs, guard):
 
     new_code = _clone_code(
         code,
-        list(chain(updated_inputs, updated_guard, post_stack)),
+        chain(updated_inputs, updated_guard, post_stack),
         (True, False),
         layout,
         len(defaults) + 1,
@@ -78,6 +98,7 @@ def compile_guard(code, inputs, guard):
 
 
 def _retarget_locals(varnames, layout, stack):
+    """Change local variable access indices to match new layout"""
     for i, b in enumerate(stack):
         if stack[i - 1] in dis.haslocal:
             b = layout.index(varnames[b])
