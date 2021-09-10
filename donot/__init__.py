@@ -1,3 +1,3 @@
-from donot._internal import do
+from donot._interpreter import do
 
 __all__ = ("do",)
