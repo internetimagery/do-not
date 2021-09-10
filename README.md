@@ -168,6 +168,15 @@ assert people == "Joe Bloggs and Joanne Bloggs"
 
 ----
 
+How does this work?
+
+Upon execution, the generator code object is introspected, and a new code object built.
+
+Thankfully we can leave the majority of the original code object intact. So even though the underlying bytecode is not guranteed to be consistent amongst python versions, we only need a tiny subset of it to remain stable.
+
+
+----
+
 [Another similar approach using the AST and Haskell-like bind operator.](https://gist.github.com/internetimagery/7012246ac8aae8fa5e185f634db60582)
 
 ```python
