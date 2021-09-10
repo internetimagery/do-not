@@ -38,16 +38,40 @@ asset_type = do(
 
 ```
 
-> How can I use this for myself?
+## Syntax Breakdown
 
-This library does not bundle an implimentation of Monads itself, by design. Instead it asks if you can support it, by using ```__iter__``` to expose whatever interface
-your existing monadic system is using.
+Taking the previous example, we can break up the syntax into what it is doing "under the hood".
+It's important to know how to write out the same code in long form, to truly understand what it is doing,
+and to understand that while there is a little bit of magic going on, to get the syntax working, it's nothing that
+cannot be backed out of in the future and written by hand.
 
-To do so, all you have to do is add a method that will yield a dictionary exposing the functionality your type uses. These can be methods, or curried functions.
+In general, if-statements in the body translate to "filter" calls; for A in B statements translate to "flat_map" calls, and the final one to a "map" call. 
 
-> NOTE: It does not matter what methods or functions you use are. You could be using bind, flatmap, chain, whatever. So long as they are exposed using the correct keys.
+```python
 
-> NOTE: filter is an optional feature. It does not make sense for a lot of monads to use it. If trying to use do-notation with an if statement in the body, on monads that cannot supply a filter interface, a TypeError will be raised.
+asset_type = (
+    current_selection()
+    .filter(lambda selection: len(selection == 1))
+    .flat_map(lambda selection:
+        get_costume(selection).flat_map(lambda costume:
+	    get_shoes(costume).map(lambda shoes:
+	        shoes.asset_type
+	    )
+	)
+    )
+)
+
+```
+
+## Installation
+
+Install direct from github:
+
+```
+pip install git+https://github.com/internetimagery/do-not.git#egg=donot
+```
+
+## Usage
 
 ```python
 def __iter__(self):
@@ -58,13 +82,26 @@ def __iter__(self):
     }
 ```
 
+In order to have your monadic classes support this functionality, all they have to do is expose their interface through `__iter__`.
+There is no need to have an explicit requirement on this library in order to support it. Furthermore other features could be added as new dict keys in the future (for this library or any other).
+
+The supported interfaces are:
+
 * __map__: Callable that takes a function, and returns the result of the function wrapped in the same context.
 * __flat_map__: Callable that takes a _function that returns the same context_, and returns that value.
 * __filter__: Callable that takes a _function that returns a boolean_. Propagates values if True else provides some fallback value.
 
+So long as the exposed interface is a callable that accepts a function, and behaves in a standard way, nothing more is needed.
+This means you can use methods with different names (chain/bind/and_then/etc) and even use regular functions and dataclasses,
+and it's all supported (so long as the dataclasses are given this `__iter__` functionality, perhaps in a mixin).
+
+This library intentionally does not bundle implimentations of monads itself. It is a utility for existing implimentations to hook into.
+
 ----
 
 Though monads are not provided here...  here are some basic examples (using attrs):
+
+#### Maybe/Option (for handling a potentially missing value)
 
 ```python
 
@@ -116,6 +153,7 @@ assert value == Nothing()
 Equal to:
 
 ```python
+
 value = Just(1).flat_map(lambda v1:
     Just(2).flat_map(lambda v2:
         Just(3).flat_map(lambda v3:
@@ -123,9 +161,10 @@ value = Just(1).flat_map(lambda v1:
 	)
     )
 )
+
 ```
 
-Or dependency injection with Reader:
+#### Reader (for handling a simple dependency injection)
 
 ```python
 
