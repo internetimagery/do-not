@@ -35,6 +35,7 @@ LOAD_FAST = dis.opmap["LOAD_FAST"]
 STORE_FAST = dis.opmap["STORE_FAST"]
 LOAD_CONST = dis.opmap["LOAD_CONST"]
 LOAD_CLOSURE = dis.opmap["LOAD_CLOSURE"]
+MAKE_CLOSURE = dis.opmap.get("MAKE_CLOSURE")
 GET_ITER = dis.opmap["GET_ITER"]
 FOR_ITER = dis.opmap["FOR_ITER"]
 BUILD_TUPLE = dis.opmap["BUILD_TUPLE"]
@@ -275,7 +276,7 @@ if PY2:
         add_op(
             stack,
             MAKE_CLOSURE if nested_code.co_freevars else MAKE_FUNCTION,
-            len(defaults),
+            nested_code.co_varnames -1,
         )
         return stack
 
