@@ -1,5 +1,6 @@
 import sys
 import dis
+from itertools import chain
 from collections import namedtuple
 
 PY2 = sys.version_info[0] == 2
@@ -74,9 +75,15 @@ def _parse_expression(code, iter_bytes, inputs):
             names.add(code.co_varnames[arg])
 
         if op == GET_ITER:
-            return FlatMapExpr(
-                names, inputs, start_offset, bytestack, _parse_inputs(code, iter_bytes)
-            )
+            peek = next(iter_bytes)
+            if peek[1] == FOR_ITER:
+                iter_bytes = chain((peek,), iter_bytes)
+                return FlatMapExpr(
+                    names, inputs, start_offset, bytestack, _parse_inputs(code, iter_bytes)
+                )
+            else:
+                add_op(bytestack, op, arg)
+                op, arg = peek[1], peek[2]
 
         if op == YIELD_VALUE:
             # We are at the end!
@@ -122,10 +129,10 @@ if PY2 or PY35:
         extended_arg = 0
         while i < n:
             j = i
-            op = ord(code[i])
+            op = as_byte(code[i])
             i = i + 1
             if op >= dis.HAVE_ARGUMENT:
-                arg = ord(code[i]) + ord(code[i + 1]) * 256 + extended_arg
+                arg = as_byte(code[i]) + as_byte(code[i + 1]) * 256 + extended_arg
                 extended_arg = 0
                 i = i + 2
                 if op == dis.EXTENDED_ARG:

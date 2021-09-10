@@ -183,6 +183,18 @@ class TestDoNot(unittest.TestCase):
         with self.assertRaises(TypeError):
             do(a for a in Reader.ask() if a)
 
+    def test_nested(self):
+
+        val = do(
+            a + b
+            for a in Just(10)
+            for b in do(
+                c + d
+                for c in Just(20)
+                for d in Just(30)
+            )
+        )
+        self.assertEqual(val, Just(60))
 
 if __name__ == "__main__":
     unittest.main()
