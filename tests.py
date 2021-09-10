@@ -196,5 +196,18 @@ class TestDoNot(unittest.TestCase):
         )
         self.assertEqual(val, Just(60))
 
+    def test_multi_filter(self):
+
+        def test(val):
+            return do(
+                v
+                for v in Just(val)
+                if (v > 5 and v < 15) or v == 20
+            )
+        self.assertEqual(test(10), Just(10))
+        self.assertEqual(test(3), Nothing())
+        self.assertEqual(test(16), Nothing())
+        self.assertEqual(test(20), Just(20))
+
 if __name__ == "__main__":
     unittest.main()
