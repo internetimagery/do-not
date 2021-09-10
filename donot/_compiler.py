@@ -55,7 +55,6 @@ def compile_code(code, node):
         add_op(new_code.stack, RETURN_VALUE),
         new_code.defaults,
     )
-    dis.dis(result)
     return result
 
 
@@ -209,7 +208,6 @@ def _clone_code(code, name, byte_stack, defaults):
                     varnames.append(arg)
 
             elif op in dis.hasconst:  # Initial constants are just reused
-                print("ARG", arg)
                 if type(arg) != int:
                     try:
                         yield consts.index(arg)
