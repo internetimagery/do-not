@@ -32,7 +32,7 @@ asset_type = do(
     shoes.asset_type
     for selection in current_selection()
     if len(selection) == 1 and selection[0].asset_type == "human"
-    for costume in get_costume(selection)
+    for costume in get_costume(selection[0])
     for shoes in get_shoes(costume)
 )
 
@@ -103,6 +103,64 @@ The supported interfaces are:
 So long as the exposed interface is a callable that accepts a function, and behaves in a standard way, nothing more is needed.
 This means you can use methods with different names (chain/bind/and_then/etc) and even use regular functions and dataclasses,
 and it's all supported (so long as the dataclasses are given this `__iter__` functionality, perhaps in a mixin).
+
+## Static Type Checking
+
+This library contains a stub file to provide static type hints to checkers. With some trickery on the supporting monads part, we can get 99% of the way to complete type checking.
+Unfortunately python does not support higher kinded types, and so the return type cannot be correctly inferred (we can get the inner type from the generator, but not the outer monad type).
+
+As such, an additional parameter exists, that is essentially a no-op, but allows one to force the return type to be one of their choosing. Here be dragons and such...
+
+Complete example below:
+
+```python
+
+from typing import Any, Callable, Generic, Iterator, TypeVar, TYPE_CHECKING
+from donot import do
+
+A = TypeVar("A")
+B = TypeVar("B")
+
+class Monad(Generic[A]):
+    def __init__(self, value: A) -> None:
+        self._value = value
+
+    def map(self, func: Callable[[A], B]) -> Monad[B]:
+        return Monad(func(self._value))
+
+    def flat_map(self, func: Callable[[A], Monad[B]]) -> Monad[B]:
+        return func(self._value)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self._value == other._value
+
+    def __iter__(self) -> Iterator[A]:
+        # Ensure we type-ignore this line. We're lying about the
+	# return type, to correctly type within the do block. ;)
+        yield {"map": self.map, "flat_map": self.flat_map} # type: ignore
+
+val1 = do(v for v in Monad("hi"))
+assert val1 == Monad("hi")
+
+val2 = do((v for v in Monad("hi")), Monad[str])
+assert val2 == Monad("hi")
+
+if TYPE_CHECKING:
+    # Without higher kinded type support, we cannot correctly infer
+    # the output... even though we know the inner value.
+    reveal_type(val1) # Note: Revealed type is "Any"
+
+    # So instead we can at least provide the type as a parameter
+    # to "force" it to work "correctly".
+    # NOTE: Anything can go in there, so it truly is an escape hatch...
+    reveal_type(val2) # Note: Revealed type is "Monad[str]"
+
+    # Types are correctly detected within the expression if typed on the __iter__ return (as above).
+    val = do(v1 + v2 for v1 in Monad("hi") for v2 in Monad(2)) # Error: Unsupported types "str" and "int"
+
+```
 
 ----
 
@@ -207,7 +265,7 @@ assert people == "Joe Bloggs and Joanne Bloggs"
 
 ----
 
-How does this work?
+#### How does this work?
 
 Upon execution, the generator code object is inspected, and a new code object built.
 
@@ -216,7 +274,7 @@ Thankfully we can leave the majority of the original code object intact. So even
 - Splitting on a ```GET_ITER``` followed by ```FOR_ITER``` lets us break up the "flat_map" and "map" ie the nested code.
 - Splitting on a ```POP_JUMP_IF_TRUE``` (and family) when the target of the jump is a ```FOR_ITER``` lets us break out filters.
 - Tracking the tuple size count after the split ```FOR_ITER``` gets us the end of the assigned variables (which we track).
-- Everything in between is the main expression, which includes all the complexity we can simply leave as is.
+- Everything in between is the main expression or the filter expression, which includes all the complexity we can simply leave as is.
 
 - A new function is generated for each of the interfaces. Passing scoped variables as default arguments. Treated like dependencies.
 - Also a handler for dealing with the interfaces is passed as an argument. The handler can be changed by calling code if desired.

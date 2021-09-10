@@ -16,7 +16,7 @@ else:
 _CACHE = WeakKeyDictionary()
 
 
-def do(generator, handler=None):
+def do(generator, type_=None, handler=None):
     """
     Simple do notation for python monads.
 
@@ -63,6 +63,12 @@ def do(generator, handler=None):
     >>>     for v2 in Just(add_one(v1))
     >>> )
     >>> assert val == Just(2)
+
+    Since we cannot type higher kinded types correctly. A parameter exists
+    in order to force the return type. Note the return type is not checked in this case.
+
+    >>> val = do((v for v in Just(123)), Just[int])
+    >>> reveal_type(val) # Note: Revealed type "Just[int]"
 
     This notation extension does not attempt to impliment a suite of monadic tooling to fit
     its structure. Instead to support this notation in your monads,
