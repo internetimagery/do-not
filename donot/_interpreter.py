@@ -16,7 +16,9 @@ else:
 _CACHE = WeakKeyDictionary()
 
 
-def do(generator, type_=None, handler=None):
+# Using a class to get __getitem__ support without requiring typing
+# package.
+class Do(object):
     """
     Simple do notation for python monads.
 
@@ -85,30 +87,37 @@ def do(generator, type_=None, handler=None):
     >>>         "filter": self.filter # Optional, only if monad supports it.
     >>>     }
     """
-    try:
-        monad = generator.gi_frame.f_locals[".0"]
-    except (AttributeError, KeyError):
-        raise TypeError(
-            "Provided argument is not a valid generator expression. Got: '{}'".format(
-                generator
+
+    def __getitem__(self, _):
+        return self
+
+    @staticmethod
+    def __call__(generator, handler=None):
+        try:
+            monad = generator.gi_frame.f_locals[".0"]
+        except (AttributeError, KeyError):
+            raise TypeError(
+                "Provided argument is not a valid generator expression. Got: '{}'".format(
+                    generator
+                )
             )
+        gen_code = generator.gi_code
+
+        cached_code = _CACHE.get(gen_code)
+        if not cached_code:
+            node = parse(gen_code)
+            cached_code = _CACHE[gen_code] = compile_code(gen_code, node)
+
+        func = FunctionType(
+            cached_code,  # The code itself
+            generator.gi_frame.f_globals,  # globals dict
+            "<do_block>",  # name of func
+            (handler or _handle_interface,),
+            tuple(CellType(generator.gi_frame.f_locals[v]) for v in gen_code.co_freevars),
         )
-    gen_code = generator.gi_code
+        return func(monad)
 
-    cached_code = _CACHE.get(gen_code)
-    if not cached_code:
-        node = parse(gen_code)
-        cached_code = _CACHE[gen_code] = compile_code(gen_code, node)
-
-    func = FunctionType(
-        cached_code,  # The code itself
-        generator.gi_frame.f_globals,  # globals dict
-        "<do_block>",  # name of func
-        (handler or _handle_interface,),
-        tuple(CellType(generator.gi_frame.f_locals[v]) for v in gen_code.co_freevars),
-    )
-    return func(monad)
-
+do = Do()
 
 def _handle_interface(name, monad, func):
     try:

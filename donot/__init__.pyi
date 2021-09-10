@@ -1,9 +1,16 @@
-from typing import overload, TypeVar, Generator, Any, Type
+import typing as _typ
 
-T = TypeVar("T")
+_T = _typ.TypeVar("_T")
 
-@overload
-def do(generator: Generator, type_: Type[T]) -> T: ...
 
-@overload
-def do(generator: Generator) -> Any: ...
+class _DoType(_typ.Generic[_T]):
+    def __call__(self, generator: _typ.Generator) -> _T: ...
+
+class _Do(object):
+
+    def __getitem__(self, item: _typ.Type[_T]) -> _DoType[_T]: ...
+
+    def __call__(self, generator: _typ.Generator): ...
+
+do = _Do()
+
