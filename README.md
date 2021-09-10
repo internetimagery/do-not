@@ -75,6 +75,10 @@ Install direct from github:
 pip install git+https://github.com/internetimagery/do-not.git#egg=donot
 ```
 
+```python
+from donot import do
+```
+
 ## Usage
 
 ```python
@@ -99,9 +103,11 @@ So long as the exposed interface is a callable that accepts a function, and beha
 This means you can use methods with different names (chain/bind/and_then/etc) and even use regular functions and dataclasses,
 and it's all supported (so long as the dataclasses are given this `__iter__` functionality, perhaps in a mixin).
 
-This library intentionally does not bundle implimentations of monads itself. It is a utility for existing implimentations to hook into.
-
 ----
+
+## More Examples
+
+This library intentionally does __not__ bundle implimentations of monads itself. It is a utility for existing implimentations to hook into.
 
 Though monads are not provided here...  here are some basic examples (using attrs):
 
@@ -154,20 +160,6 @@ assert value == Nothing()
 	
 ```
 
-Equal to:
-
-```python
-
-value = Just(1).flat_map(lambda v1:
-    Just(2).flat_map(lambda v2:
-        Just(3).flat_map(lambda v3:
-	    v1 + v2 + v3
-	)
-    )
-)
-
-```
-
 #### Reader (for handling a simple dependency injection)
 
 ```python
@@ -193,6 +185,9 @@ class Reader:
     def __iter__(self): # Expose interface to do notation
     	yield {"map": self.map, "flat_map": self.flat_map}
 
+```
+
+```python
 
 def fullname(firstname):
     return do(
@@ -213,10 +208,25 @@ assert people == "Joe Bloggs and Joanne Bloggs"
 
 How does this work?
 
-Upon execution, the generator code object is introspected, and a new code object built.
+Upon execution, the generator code object is inspected, and a new code object built.
 
-Thankfully we can leave the majority of the original code object intact. So even though the underlying bytecode is not guranteed to be consistent amongst python versions, we only need a tiny subset of it to remain stable.
+Thankfully we can leave the majority of the original code object intact. So even though the underlying bytecode is not guranteed to be consistent amongst python versions, we only need a tiny subset of it to remain stable. Thus there is very little that needs to exist for compatability with python 2.7 and 3.6+. Encouraging! :)
 
+- Splitting on a ```GET_ITER``` followed by ```FOR_ITER``` lets us break up the "flat_map" and "map" ie the nested code.
+- Splitting on a ```POP_JUMP_IF_TRUE``` (and family) when the target of the jump is a ```FOR_ITER``` lets us break out filters.
+- Tracking the tuple size count after the split ```FOR_ITER``` gets us the end of the assigned variables (which we track).
+- Everything in between is the main expression, which includes all the complexity we can simply leave as is.
+
+- A new function is generated for each of the interfaces. Passing scoped variables as default arguments. Treated like dependencies.
+- Also a handler for dealing with the interfaces is passed as an argument. The handler can be changed by calling code if desired.
+- Generator closure and globals are simply copied into the functions.
+
+----
+
+#### TODO
+
+- Document things internally more clearly.
+- Work on a static typing solution. Without higher kinded types, unfortunately this cannot be easily achieved through conventional means.
 
 ----
 
@@ -231,25 +241,9 @@ def add_em():
 assert add_em() == Just(30)
 ```
 
-[GenMonads; A similar and inspirational project.](https://github.com/underspecified/GenMonads)
+- [GenMonads; A similar and inspirational project.](https://github.com/underspecified/GenMonads)
+- [monad-do; Another similar approach using yields and decorators.](https://pypi.org/project/monad-do/)
 
 ----
 
-TODO: Find a better way to generically handle if statements in the body. Having it work like a case statement
-(as it currently is) is useful in some situations. However it's more likely useful to have a meaningful return
-value instead. Some monads like Maybe/Either support switching to their alternate path, but for many others it makes
-no sense. A possible solution could be a second argument to "do" that acts as a fallback default. Or for the monad
-to expose another interface that handles this for us (and we use that instead of "pure" where available).
-
-Scala uses "withFilter" and if you don't support that, you're not using that monad. Perhaps that is the way forward here too...
-though not many monads can make use of it.
-
-Also guards can exist as expressions... eg
-
-```python
-val = do(
-    v1 + v2
-    for v1 in Just(10)
-    for v2 in Just(11) if v1 else Nothing()
-)
-```
+![monad meme](https://memegenerator.net/img/instances/59509745/what-if-i-told-you-that-a-monad-is-just-a-monoid-in-the-category-of-endofunctors.jpg)
