@@ -12,9 +12,9 @@ def get_shoe_asset():
     selection = current_selection()
     if not selection:
         return None
-    if len(selection) != 1:
+    if len(selection) != 1 or selecton[0].asset_type != "human":
         return None
-    costume = get_costume(selection)
+    costume = get_costume(selection[0])
     if not costume:
         return None
     shoes = get_shoes(costume)
@@ -31,7 +31,7 @@ Could be written with the Maybe/Option monad in do notation as such:
 asset_type = do(
     shoes.asset_type
     for selection in current_selection()
-    if len(selection) == 1
+    if len(selection) == 1 and selection[0].asset_type == "human"
     for costume in get_costume(selection)
     for shoes in get_shoes(costume)
 )
@@ -54,12 +54,13 @@ cannot be backed out of in the future and written easily by hand.
 ```python
 
 asset_type = (
-    current_selection()                                 # for selection in current_selection()
-    .filter(lambda selection: len(selection == 1))      # if len(selection) == 1
-    .flat_map(lambda selection:				# 
-        get_costume(selection).flat_map(lambda costume: # for costume in get_costume(selection)
-	    get_shoes(costume).map(lambda shoes:        # for shoes in get_shoes(costume)
-	        shoes.asset_type                        # shoes.asset_type
+    current_selection()                                                 # for selection in current_selection()
+    .filter(lambda selection:
+    	len(selection == 1) and selection[0].asset_type == "human"      # if len(selection) == 1 and selection[0].asset_type == "human"
+    ).flat_map(lambda selection:				        # 
+        get_costume(selection).flat_map(lambda costume:                 # for costume in get_costume(selection)
+	    get_shoes(costume).map(lambda shoes:                        # for shoes in get_shoes(costume)
+	        shoes.asset_type                                        # shoes.asset_type
 	    )
 	)
     )
