@@ -41,21 +41,25 @@ asset_type = do(
 ## Syntax Breakdown
 
 Taking the previous example, we can break up the syntax into what it is doing "under the hood".
-It's important to know how to write out the same code in long form, to truly understand what it is doing,
-and to understand that while there is a little bit of magic going on, to get the syntax working, it's nothing that
-cannot be backed out of in the future and written by hand.
+It's important to know how to write out the same code in long form, to truly understand what it is doing.
 
-In general, if-statements in the body translate to "filter" calls; for A in B statements translate to "flat_map" calls, and the final one to a "map" call. 
+Also to understand that while there is a little bit of magic going on (to get the syntax working), it's nothing that
+cannot be backed out of in the future and written easily by hand.
+
+- _if-statements_ in the body translate to "filter" calls.
+- _for A in B_ statements translate to "flat_map" calls.
+- _for A in B_ the final statement translates to a "map" call.
+
 
 ```python
 
 asset_type = (
-    current_selection()
-    .filter(lambda selection: len(selection == 1))
-    .flat_map(lambda selection:
-        get_costume(selection).flat_map(lambda costume:
-	    get_shoes(costume).map(lambda shoes:
-	        shoes.asset_type
+    current_selection()                                 # for selection in current_selection()
+    .filter(lambda selection: len(selection == 1))      # if len(selection) == 1
+    .flat_map(lambda selection:				# 
+        get_costume(selection).flat_map(lambda costume: # for costume in get_costume(selection)
+	    get_shoes(costume).map(lambda shoes:        # for shoes in get_shoes(costume)
+	        shoes.asset_type                        # shoes.asset_type
 	    )
 	)
     )
