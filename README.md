@@ -106,13 +106,13 @@ and it's all supported (so long as the dataclasses are given this `__iter__` fun
 
 ## Static Type Checking
 
-This library contains a stub file to provide static type hints to checkers. With some trickery on the supporting monads part, we can get 99% of the way to complete type checking.
+This library contains a stub file to provide static type hints to checkers. With some trickery on the supporting monads part, we can get 90% of the way to complete type checking.
 Unfortunately python does not support higher kinded types, and so the return type cannot be correctly inferred (we can get the inner type from the generator, but not the outer monad type).
 
-As such do is in fact a class designed to provide a convenient parameter, that is essentially a no-op, but allows one to force the return type to be one of their choosing. Here be dragons and such...
+This means type annotations are really required.
 
 ```python
-val = do[Just[str]](
+val: Just[str] = do(
     a 
     for a in Just("parameter!")
 )
@@ -151,7 +151,7 @@ class Monad(Generic[A]):
 val1 = do(v for v in Monad("hi"))
 assert val1 == Monad("hi")
 
-val2 = do[Monad[str]](v for v in Monad("hi"))
+val2: Monad[str] = do(v for v in Monad("hi"))
 assert val2 == Monad("hi")
 
 if TYPE_CHECKING:

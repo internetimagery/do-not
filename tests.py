@@ -209,9 +209,6 @@ class TestDoNot(unittest.TestCase):
         self.assertEqual(test(16), Nothing())
         self.assertEqual(test(20), Just(20))
 
-    def test_typing_arg(self):
-        val = do[int](a for a in Just(10))
-        self.assertEqual(val, Just(10))
 
 if __name__ == "__main__":
     unittest.main()
