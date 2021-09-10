@@ -276,7 +276,7 @@ if PY2:
         add_op(
             stack,
             MAKE_CLOSURE if nested_code.co_freevars else MAKE_FUNCTION,
-            nested_code.co_varnames -1,
+            nested_code.co_argcount -1,
         )
         return stack
 
