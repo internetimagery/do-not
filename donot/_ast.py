@@ -97,8 +97,12 @@ def _parse_expression(code, iter_bytes, inputs):
 
 
 # Lifted from dis.disassemble
-if PY2 or PY35:
+if PY2:
     as_byte = ord
+else:
+    as_byte = int
+
+if PY2 or PY35:
 
     def add_op(stack, operation, arg=None):
         if arg is None:
