@@ -194,6 +194,7 @@ def _clone_code(code, name, byte_stack, defaults):
     consts = list(code.co_consts)
     varnames = [".0"]
     varnames.extend(defaults)
+    nonlocal_ = {"stacksize": 1}
 
     def retarget(byte_stack):
         op = None
@@ -220,6 +221,8 @@ def _clone_code(code, name, byte_stack, defaults):
             else:
                 yield arg
 
+            if isinstance(op, int) and "LOAD" in dis.opname[op]:
+                nonlocal_["stacksize"] += 1
             op = arg
 
     bytes_ = to_bytes(retarget(byte_stack))
@@ -229,7 +232,7 @@ def _clone_code(code, name, byte_stack, defaults):
         0,  # code.co_posonlyargcount,
         0,  # code.co_kwonlyargcount,
         len(varnames),  # code.co_nlocals,
-        max(code.co_stacksize, len(varnames)) + 3,  # Plus extra for calling interface
+        nonlocal_["stacksize"],
         inspect.CO_OPTIMIZED | inspect.CO_NEWLOCALS | inspect.CO_NESTED,
         bytes_,
         tuple(consts),
@@ -276,7 +279,7 @@ if PY2:
         add_op(
             stack,
             MAKE_CLOSURE if nested_code.co_freevars else MAKE_FUNCTION,
-            nested_code.co_argcount -1,
+            nested_code.co_argcount - 1,
         )
         return stack
 
