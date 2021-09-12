@@ -105,7 +105,9 @@ def do(generator, handler=None):
         generator.gi_frame.f_globals,  # globals dict
         "<do_block>",  # name of func
         (handler or _handle_interface,),
-        tuple(CellType(generator.gi_frame.f_locals[v]) for v in gen_code.co_freevars),
+        tuple(CellType(generator.gi_frame.f_locals[v]) for v in gen_code.co_freevars)
+        if gen_code.co_freevars
+        else None,
     )
     return func(monad)
 
