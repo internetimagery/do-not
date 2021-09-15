@@ -1,6 +1,6 @@
 # Python meets do notation [![Build Status](https://app.travis-ci.com/internetimagery/do-not.svg?branch=main)](https://app.travis-ci.com/internetimagery/do-not)
 
-Monaic do notation with python for comprehensions. Currently tested on python 2.7, 3.6 ~ 3.9.
+Monaic do notation with python for comprehensions. Currently tested on python 2.7, 3.6 ~ 3.9, pypy, pypy3.
 
 A simple repurposing of the generator comprehension to serve as do notation / for comprehension. Similar to Scala for comprehensions.
 
@@ -276,7 +276,7 @@ assert people == "Joe Bloggs and Joanne Bloggs"
 
 Upon execution, the generator code object is inspected, and a new code object built.
 
-Thankfully we can leave the majority of the original code object intact. So even though the underlying bytecode is not guranteed to be consistent amongst python versions, we only need a tiny subset of it to remain stable. Thus there is very little that needs to exist for compatability with python 2.7 and 3.6+. Encouraging! :)
+Thankfully we can leave the majority of the original code object intact. So even though the underlying bytecode is not guranteed to be consistent amongst python versions, we only need a tiny subset of it to remain stable. Thus there is very little that needs to exist for compatability with python 2.7, 3.6+ and pypy. Encouraging! :)
 
 - Splitting on a ```GET_ITER``` followed by ```FOR_ITER``` lets us break up the "flat_map" and "map" ie the nested code.
 - Splitting on a ```POP_JUMP_IF_TRUE``` (and family) when the target of the jump is a ```FOR_ITER``` lets us break out filters.
