@@ -79,7 +79,11 @@ def _parse_expression(code, iter_bytes, inputs):
             if peek[1] == FOR_ITER:
                 iter_bytes = chain((peek,), iter_bytes)
                 return FlatMapExpr(
-                    names, inputs, start_offset, bytestack, _parse_inputs(code, iter_bytes)
+                    names,
+                    inputs,
+                    start_offset,
+                    bytestack,
+                    _parse_inputs(code, iter_bytes),
                 )
             else:
                 add_op(bytestack, op, arg)
@@ -90,7 +94,7 @@ def _parse_expression(code, iter_bytes, inputs):
             add_op(bytestack, RETURN_VALUE)
             return MapExpr(names, inputs, start_offset, bytestack)
 
-        if op in dis.hasjabs and FOR_ITER == as_byte(code.co_code[arg]):
+        if op in dis.hasjabs and jumps_out(code.co_code, arg):
             return Guard(
                 names,
                 inputs,
@@ -101,6 +105,19 @@ def _parse_expression(code, iter_bytes, inputs):
             )
 
         add_op(bytestack, op, arg)
+
+
+def jumps_out(code, arg):
+    # Sometimes the jump targets the FOR_ITER directly.
+    # Other times there are a couple of jumps before we get there.
+    while True:
+        op = as_byte(code[arg])
+        if op == FOR_ITER:
+            return True
+        elif op not in dis.hasjabs:
+            return False
+        arg = as_byte(code[arg + 1])
+    raise RuntimeError("Could not determine jump target")
 
 
 # Lifted from dis.disassemble

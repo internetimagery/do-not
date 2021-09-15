@@ -194,6 +194,7 @@ def _clone_code(code, name, byte_stack, defaults):
     consts = list(code.co_consts)
     varnames = [".0"]
     varnames.extend(defaults)
+    nonlocal_ = {"stacksize": 1}
 
     def retarget(byte_stack):
         op = None
@@ -220,6 +221,8 @@ def _clone_code(code, name, byte_stack, defaults):
             else:
                 yield arg
 
+            if isinstance(op, int) and "LOAD" in dis.opname[op]:
+                nonlocal_["stacksize"] += 1
             op = arg
 
     bytes_ = to_bytes(retarget(byte_stack))
@@ -229,7 +232,7 @@ def _clone_code(code, name, byte_stack, defaults):
         0,  # code.co_posonlyargcount,
         0,  # code.co_kwonlyargcount,
         len(varnames),  # code.co_nlocals,
-        max(code.co_stacksize, len(varnames)) + 3,  # Plus extra for calling interface
+        nonlocal_["stacksize"],
         inspect.CO_OPTIMIZED | inspect.CO_NEWLOCALS | inspect.CO_NESTED,
         bytes_,
         tuple(consts),
@@ -276,27 +279,30 @@ if PY2:
         add_op(
             stack,
             MAKE_CLOSURE if nested_code.co_freevars else MAKE_FUNCTION,
-            nested_code.co_argcount -1,
+            nested_code.co_argcount - 1,
         )
         return stack
 
 
 else:
-
     def _make_function(code, nested_code):
         # Load up all defaults that were requested by the nested funcion.
+        has_defaults = nested_code.co_argcount > 1
+        has_closure = code.co_freevars
+
         stack = []
-        for i in range(1, nested_code.co_argcount):
-            add_op(
-                stack,
-                LOAD_FAST,
-                nested_code.co_varnames[i],
-            )
-        add_op(stack, BUILD_TUPLE, nested_code.co_argcount - 1)
+        if has_defaults:
+            for i in range(1, nested_code.co_argcount):
+                add_op(
+                    stack,
+                    LOAD_FAST,
+                    nested_code.co_varnames[i],
+                )
+            add_op(stack, BUILD_TUPLE, nested_code.co_argcount - 1)
 
         # If we are in a closure, we have to handle passing the closure forward.
         # Build a tuple with all closure variables (for simplicity) and pass that on.
-        if code.co_freevars:
+        if has_closure:
             for a in range(len(nested_code.co_freevars)):
                 add_op(stack, LOAD_CLOSURE, a)
             add_op(stack, BUILD_TUPLE, len(nested_code.co_freevars))
@@ -306,6 +312,14 @@ else:
         add_op(stack, LOAD_CONST, nested_code)  # Code object for nested code
         add_op(stack, LOAD_CONST, nested_code.co_name)  # Code name for nested code
         add_op(
-            stack, MAKE_FUNCTION, 9 if nested_code.co_freevars else 1
+            stack,
+            MAKE_FUNCTION,
+            9
+            if has_closure and has_defaults
+            else 8
+            if has_closure and not has_defaults
+            else 1
+            if not has_closure and has_defaults
+            else 0,
         )  # 9 = closure+defaults, 1 = defaults
         return stack
