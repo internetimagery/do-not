@@ -190,6 +190,9 @@ def Nothing:
     def flat_map(self, func):
     	return self
 
+    def filter(self, func):
+        return self
+
     def __iter__(self): # Expose interface to do notation
 	yield {"map": self.map, "flat_map": self.flat_map}
 
@@ -203,6 +206,9 @@ def Just(Nothing):
 
     def flat_map(self, func):
         return func(self.value)
+
+    def filter(self, func):
+        return self if func(self.value) else Nothing()
 
 ```
 
@@ -224,6 +230,13 @@ value = do(
 )
 assert value == Nothing()
 	
+value = do(
+    v1 + v2
+    for v1 in Just(1)
+    if v1 > 3 # Filters to "Nothing"
+    for v2 in Just(3)
+)
+assert value == Nothing()
 ```
 
 #### Reader (for handling a simple dependency injection)
