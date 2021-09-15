@@ -292,7 +292,7 @@ Thankfully we can leave the majority of the original code object intact. So even
 #### TODO
 
 - Document things internally more clearly.
-- Work on a static typing solution. Without higher kinded types, unfortunately this cannot be easily achieved through conventional means.
+- Work on a static typing solution for return values. Thankfully internal values can be easily typed, but without higher kinded types the return value cannot be easily checked.
 
 ----
 
