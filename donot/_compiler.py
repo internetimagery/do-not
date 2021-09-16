@@ -285,6 +285,7 @@ if PY2:
 
 
 else:
+
     def _make_function(code, nested_code):
         # Load up all defaults that were requested by the nested funcion.
         has_defaults = nested_code.co_argcount > 1
@@ -314,12 +315,6 @@ else:
         add_op(
             stack,
             MAKE_FUNCTION,
-            9
-            if has_closure and has_defaults
-            else 8
-            if has_closure and not has_defaults
-            else 1
-            if not has_closure and has_defaults
-            else 0,
+            (0x08 if has_closure else 0x00) | (0x01 if has_defaults else 0x00),
         )  # 9 = closure+defaults, 1 = defaults
         return stack
