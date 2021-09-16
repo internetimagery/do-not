@@ -258,6 +258,8 @@ if PY2:
 
     def _make_function(code, nested_code):
         # Load up all defaults that were requested by the nested funcion.
+        has_closure = code.co_freevars
+
         stack = []
         for i in range(1, nested_code.co_argcount):
             add_op(
@@ -268,7 +270,7 @@ if PY2:
 
         # If we are in a closure, we have to handle passing the closure forward.
         # Build a tuple with all closure variables (for simplicity) and pass that on.
-        if code.co_freevars:
+        if has_closure:
             for a in range(len(nested_code.co_freevars)):
                 add_op(stack, LOAD_CLOSURE, a)
             add_op(stack, BUILD_TUPLE, len(nested_code.co_freevars))
@@ -278,7 +280,7 @@ if PY2:
         add_op(stack, LOAD_CONST, nested_code)  # Code object for nested code
         add_op(
             stack,
-            MAKE_CLOSURE if nested_code.co_freevars else MAKE_FUNCTION,
+            MAKE_CLOSURE if has_closure else MAKE_FUNCTION,
             nested_code.co_argcount - 1,
         )
         return stack
@@ -316,5 +318,5 @@ else:
             stack,
             MAKE_FUNCTION,
             (0x08 if has_closure else 0x00) | (0x01 if has_defaults else 0x00),
-        )  # 9 = closure+defaults, 1 = defaults
+        )
         return stack
