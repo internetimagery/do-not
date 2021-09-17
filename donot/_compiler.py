@@ -104,6 +104,7 @@ def _compile_flatmap(code, node, inner_code):
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
     add_op(stack, LOAD_CONST, FLATMAP)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
+    add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
     return FlatMapFunc(defaults, stack)
@@ -139,6 +140,7 @@ def _compile_map(code, node):
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
     add_op(stack, LOAD_CONST, MAP)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
+    add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
     return MapFunc(defaults, stack)
@@ -178,6 +180,7 @@ def _compile_guard(code, node):
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
     add_op(stack, LOAD_CONST, FILTER)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
+    add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
 

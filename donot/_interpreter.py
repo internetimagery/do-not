@@ -115,7 +115,7 @@ def do(generator, handler=None):
 def _handle_interface(name, monad, func):
     try:
         # Type error allowed to raise directly.
-        interface = next(iter(monad))
+        interface = next(monad)
     except StopIteration:
         raise TypeError(
             "Interface not supplied. Please yield a dict exposing the monadic interface from {}".format(

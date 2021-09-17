@@ -177,11 +177,19 @@ can be overridden.
 
 ```python
 
-def my_handler(name: str, obj: Any, func: Callable[[A], B]):
+from functools import partial
+from donot import do, MAP, FLATMAP, FILTER
+
+def my_handler(name: str, obj: Iterator, func: Callable[[A], B]):
     # Name is the interface name; map; flat_map; filter.
     # Obj is the object returned from the __iter__ method being invoked.
     # Func is the next function in the chain.
-    ...
+    if name == MAP:
+        ...
+    elif name == FLATMAP:
+        ...
+    elif name == FILTER:
+        ...
 
 new_do = partial(do, handler=my_handler)
 
