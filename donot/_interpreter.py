@@ -117,6 +117,11 @@ def _handle_interface(name, monad, func):
         # Type error allowed to raise directly.
         interface = next(monad)
     except StopIteration:
+        try:
+            # Make a small attempt to get the actual object for error info.
+            monad = monad.gi_frame.f_locals["self"]
+        except (AttributeError, KeyError):
+            pass
         raise TypeError(
             "Interface not supplied. Please yield a dict exposing the monadic interface from {}".format(
                 monad
@@ -129,3 +134,6 @@ def _handle_interface(name, monad, func):
         raise TypeError("{} not exposed through {}".format(name, monad))
 
     return caller(func)
+
+
+
