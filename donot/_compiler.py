@@ -31,6 +31,11 @@ ComposedFunc = namedtuple("ComposedFunc", ("defaults", "stack"))
 
 INTERFACE = "Interface.Handler"
 
+MAP = "map"
+FLATMAP = "flat_map"
+FILTER = "filter"
+HANDLER_NAMES = (MAP, FLATMAP, FILTER)
+
 LOAD_FAST = dis.opmap["LOAD_FAST"]
 STORE_FAST = dis.opmap["STORE_FAST"]
 LOAD_CONST = dis.opmap["LOAD_CONST"]
@@ -97,7 +102,7 @@ def _compile_flatmap(code, node, inner_code):
 
     stack = []
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
-    add_op(stack, LOAD_CONST, "flat_map")  # Load interface name
+    add_op(stack, LOAD_CONST, FLATMAP)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
@@ -132,7 +137,7 @@ def _compile_map(code, node):
 
     stack = []
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
-    add_op(stack, LOAD_CONST, "map")  # Load interface name
+    add_op(stack, LOAD_CONST, MAP)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
@@ -171,7 +176,7 @@ def _compile_guard(code, node):
 
     stack = []
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
-    add_op(stack, LOAD_CONST, "filter")  # Load interface name
+    add_op(stack, LOAD_CONST, FILTER)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
