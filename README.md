@@ -169,6 +169,24 @@ if TYPE_CHECKING:
 
 ```
 
+## Extensions
+
+While this tool by default expects a simple dict to be presented exposing the objects
+interface. If this is not something you wish to use, this functionality
+can be overridden.
+
+```python
+
+def my_handler(name: str, obj: Any, func: Callable[[A], B]):
+    # Name is the interface name; map; flat_map; filter.
+    # Obj is the object returned from the __iter__ method being invoked.
+    # Func is the next function in the chain.
+    ...
+
+new_do = partial(do, handler=my_handler)
+
+```
+
 ----
 
 ## More Examples
