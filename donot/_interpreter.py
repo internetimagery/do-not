@@ -115,17 +115,25 @@ def do(generator, handler=None):
 def _handle_interface(name, monad, func):
     try:
         # Type error allowed to raise directly.
-        interface = next(iter(monad))
+        interface = next(monad)
     except StopIteration:
         raise TypeError(
             "Interface not supplied. Please yield a dict exposing the monadic interface from {}".format(
-                monad
+                _get_self(monad)
             )
         )
 
     try:
         caller = interface[name]
     except KeyError:
-        raise TypeError("{} not exposed through {}".format(name, monad))
+        raise TypeError("{} not exposed through {}".format(name, _get_self(monad)))
 
     return caller(func)
+
+
+def _get_self(iterator):
+    # Make a small attempt to get the actual object for error info.
+    try:
+        return iterator.gi_frame.f_locals["self"]
+    except (AttributeError, KeyError):
+        return iterator

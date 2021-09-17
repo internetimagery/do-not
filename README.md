@@ -169,6 +169,32 @@ if TYPE_CHECKING:
 
 ```
 
+## Extensions
+
+While this tool by default expects a simple dict to be presented exposing the objects
+interface. If this is not something you wish to use, this functionality
+can be overridden.
+
+```python
+
+from functools import partial
+from donot import do, MAP, FLATMAP, FILTER
+
+def my_handler(name: str, obj: Iterator, func: Callable[[A], B]):
+    # Name is the interface name; map; flat_map; filter.
+    # Obj is the object returned from the __iter__ method being invoked.
+    # Func is the next function in the chain.
+    if name == MAP:
+        ...
+    elif name == FLATMAP:
+        ...
+    elif name == FILTER:
+        ...
+
+new_do = partial(do, handler=my_handler)
+
+```
+
 ----
 
 ## More Examples
@@ -190,6 +216,9 @@ def Nothing:
     def flat_map(self, func):
     	return self
 
+    def filter(self, func):
+        return self
+
     def __iter__(self): # Expose interface to do notation
 	yield {"map": self.map, "flat_map": self.flat_map}
 
@@ -203,6 +232,9 @@ def Just(Nothing):
 
     def flat_map(self, func):
         return func(self.value)
+
+    def filter(self, func):
+        return self if func(self.value) else Nothing()
 
 ```
 
@@ -224,6 +256,13 @@ value = do(
 )
 assert value == Nothing()
 	
+value = do(
+    v1 + v2
+    for v1 in Just(1)
+    if v1 > 3 # Filters to "Nothing"
+    for v2 in Just(3)
+)
+assert value == Nothing()
 ```
 
 #### Reader (for handling a simple dependency injection)
@@ -292,7 +331,7 @@ Thankfully we can leave the majority of the original code object intact. So even
 #### TODO
 
 - Document things internally more clearly.
-- Work on a static typing solution. Without higher kinded types, unfortunately this cannot be easily achieved through conventional means.
+- Work on a static typing solution for return values. Thankfully internal values can be easily typed, but without higher kinded types the return value cannot be easily checked.
 
 ----
 

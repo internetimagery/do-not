@@ -31,6 +31,11 @@ ComposedFunc = namedtuple("ComposedFunc", ("defaults", "stack"))
 
 INTERFACE = "Interface.Handler"
 
+MAP = "map"
+FLATMAP = "flat_map"
+FILTER = "filter"
+HANDLER_NAMES = (MAP, FLATMAP, FILTER)
+
 LOAD_FAST = dis.opmap["LOAD_FAST"]
 STORE_FAST = dis.opmap["STORE_FAST"]
 LOAD_CONST = dis.opmap["LOAD_CONST"]
@@ -97,8 +102,9 @@ def _compile_flatmap(code, node, inner_code):
 
     stack = []
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
-    add_op(stack, LOAD_CONST, "flat_map")  # Load interface name
+    add_op(stack, LOAD_CONST, FLATMAP)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
+    add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
     return FlatMapFunc(defaults, stack)
@@ -132,8 +138,9 @@ def _compile_map(code, node):
 
     stack = []
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
-    add_op(stack, LOAD_CONST, "map")  # Load interface name
+    add_op(stack, LOAD_CONST, MAP)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
+    add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
     return MapFunc(defaults, stack)
@@ -171,8 +178,9 @@ def _compile_guard(code, node):
 
     stack = []
     add_op(stack, LOAD_FAST, INTERFACE)  # Load interface
-    add_op(stack, LOAD_CONST, "filter")  # Load interface name
+    add_op(stack, LOAD_CONST, FILTER)  # Load interface name
     add_op(stack, LOAD_FAST, ".0")  # Load monad
+    add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
 
@@ -258,6 +266,8 @@ if PY2:
 
     def _make_function(code, nested_code):
         # Load up all defaults that were requested by the nested funcion.
+        has_closure = code.co_freevars
+
         stack = []
         for i in range(1, nested_code.co_argcount):
             add_op(
@@ -268,7 +278,7 @@ if PY2:
 
         # If we are in a closure, we have to handle passing the closure forward.
         # Build a tuple with all closure variables (for simplicity) and pass that on.
-        if code.co_freevars:
+        if has_closure:
             for a in range(len(nested_code.co_freevars)):
                 add_op(stack, LOAD_CLOSURE, a)
             add_op(stack, BUILD_TUPLE, len(nested_code.co_freevars))
@@ -278,13 +288,14 @@ if PY2:
         add_op(stack, LOAD_CONST, nested_code)  # Code object for nested code
         add_op(
             stack,
-            MAKE_CLOSURE if nested_code.co_freevars else MAKE_FUNCTION,
+            MAKE_CLOSURE if has_closure else MAKE_FUNCTION,
             nested_code.co_argcount - 1,
         )
         return stack
 
 
 else:
+
     def _make_function(code, nested_code):
         # Load up all defaults that were requested by the nested funcion.
         has_defaults = nested_code.co_argcount > 1
@@ -314,12 +325,6 @@ else:
         add_op(
             stack,
             MAKE_FUNCTION,
-            9
-            if has_closure and has_defaults
-            else 8
-            if has_closure and not has_defaults
-            else 1
-            if not has_closure and has_defaults
-            else 0,
-        )  # 9 = closure+defaults, 1 = defaults
+            (0x08 if has_closure else 0x00) | (0x01 if has_defaults else 0x00),
+        )
         return stack
