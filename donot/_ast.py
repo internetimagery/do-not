@@ -193,14 +193,14 @@ else:
 
     def _unpack_opargs(code):
         extended_arg = 0
-        for i in range(0, len(code), 2):
-            op = code[i]
+        code_iter = iter(code)
+        for i, (op, arg) in enumerate(zip(code_iter, code_iter)):
             if op >= dis.HAVE_ARGUMENT:
-                arg = code[i + 1] | extended_arg
+                arg |= extended_arg
                 extended_arg = (arg << 8) if op == dis.EXTENDED_ARG else 0
             else:
                 arg = None
-            yield (i, op, arg)
+            yield (i*2, op, arg)
 
 
 if __name__ == "__main__":
