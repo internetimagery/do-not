@@ -274,10 +274,10 @@ class Reader:
     func = attr.ib()
 
     def map(self, func):
-        return self.__class__(lambda env: func(self.func(env)))
+        return self.__class__(lambda env: func(self.run(env)))
 
     def flat_map(self, func):
-        return self.__class__(lambda env: func(self.func(env)).run(env))
+        return self.__class__(lambda env: func(self.run(env)).run(env))
 
     def run(self, env):
         return self.func(env)
