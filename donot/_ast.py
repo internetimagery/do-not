@@ -16,7 +16,7 @@ YIELD_VALUE = dis.opmap["YIELD_VALUE"]
 RETURN_VALUE = dis.opmap["RETURN_VALUE"]
 
 
-Inputs = namedtuple("Inputs", ("names", "lnotab", "stack"))
+Inputs = namedtuple("Inputs", ("names", "stack"))
 Guard = namedtuple(
     "Guard", ("names", "inputs", "state", "start", "lnotab", "stack", "next")
 )
@@ -65,7 +65,6 @@ def _parse_inputs(code, iter_bytes):
             raise AssertionError("Unexpected operation {}".format(dis.opname[op]))
     node = Inputs(
         inputs,
-        tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
         bytestack,
     )
     return _parse_expression(code, iter_bytes, node)
@@ -90,9 +89,7 @@ def _parse_expression(code, iter_bytes, inputs):
                     names,
                     inputs,
                     start_offset,
-                    tuple(
-                        _get_lnotab(code, start_offset, start_offset + len(bytestack))
-                    ),
+                    _get_lnotab(code, start_offset, start_offset + len(bytestack)),
                     bytestack,
                     _parse_inputs(code, iter_bytes),
                 )
@@ -107,7 +104,7 @@ def _parse_expression(code, iter_bytes, inputs):
                 names,
                 inputs,
                 start_offset,
-                tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
+                _get_lnotab(code, start_offset, start_offset + len(bytestack)),
                 bytestack,
             )
 
@@ -117,7 +114,7 @@ def _parse_expression(code, iter_bytes, inputs):
                 inputs,
                 "TRUE" in dis.opname[op],
                 start_offset,
-                tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
+                _get_lnotab(code, start_offset, start_offset + len(bytestack)),
                 bytestack,
                 _parse_expression(code, iter_bytes, inputs),
             )
