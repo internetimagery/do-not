@@ -89,7 +89,7 @@ class TestDoNot(unittest.TestCase):
             (v1, v2, v3)
             for v1 in Just(10)
             for v2 in Just(20)
-            if not v2
+            if v2 + v1 > 40
             for v3 in Just(30)
         )
         self.assertEqual(val, Nothing())

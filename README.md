@@ -326,12 +326,59 @@ Thankfully we can leave the majority of the original code object intact. So even
 - Also a handler for dealing with the interfaces is passed as an argument. The handler can be changed by calling code if desired.
 - Generator closure and globals are simply copied into the functions.
 
+#### Why use this syntax?
+
+- Some other examples use yield, and async/await does that too. The trouble with yield is you cannot backtrack. Certain monads have the ability to rerun the function multiple times and generators do not allow this. Otherwise yield is a nice option.
+- It's possible to override some built in operators (ie >>=) to store the value, and break up the ast. The trouble here is the complexity when anything else is allowed to exist. What happens when we use the operator in a loop for instance? How do we break up the code then?
+- Comprehension syntax is smaller, concise, manageable.
+- Comprehensions fit within other code. Unlike decorators which need to exist outside a function, and transform the outer code as well.
+- There is a precident set already in Scala with "for comprehensions" doing the same thing.
+- In fact, a simple List monad can also be built to demo that these comprehension syntaxes are already somewhat monadic. eg
+
+```python
+@attr.s
+class List:
+    lst = attr.ib()
+
+    def map(self, func):
+        lst = []
+	for item in self.lst:
+	    lst.append(item)
+	return List(lst)
+
+    def flat_map(self, func):
+        lst = []
+	for inner in self.lst:
+	    for item in func(inner).lst:
+	        lst.append(item)
+	return List(lst)
+
+    def filter(self, func):
+        lst = []
+	for item in self.lst:
+	    if func(item):
+	        lst.append(item)
+        return List(lst)
+
+    def __iter__(self):
+        yield {"map": self.map, "flat_map": self.flat_map, "filter": self.filter}
+```
+
+```python
+result = do(
+    v1 + v2
+    for v1 in List([1,2,3])
+    for v2 in List([4,5,6])
+)
+assert result.lst = [v1+v2 for v1 in [1,2,3] for v2 in [4,5,6]]
+```
 ----
 
 #### TODO
 
 - Document things internally more clearly.
 - Work on a static typing solution for return values. Thankfully internal values can be easily typed, but without higher kinded types the return value cannot be easily checked.
+- Build a decorator that can pre-compile "do" generators (does it make sense to compile all generators?).
 
 ----
 
