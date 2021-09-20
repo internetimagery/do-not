@@ -329,7 +329,7 @@ Thankfully we can leave the majority of the original code object intact. So even
 #### Why use this syntax?
 
 - Some other examples use yield, and async/await does that too. The trouble with yield is you cannot backtrack. Certain monads have the ability to rerun the function multiple times and generators do not allow this. Otherwise yield is a nice option.
-- It's possible to override some built in operators (ie >>=) to store the value, and break up the ast. The trouble here is the complexity when anything else is allowed to exist. What happens when we use the operator in a loop for instance? How do we break up the code then?
+- It's possible to override some built in operators (ie >>=) to store the value, and break up the ast. The trouble here is the complexity when anything else is allowed to exist. What happens when we use the operator in a loop for instance? How do we break up the code then? It's also an uphill battle with linters when changing the meaning behind defined syntax.
 - Comprehension syntax is smaller, concise, manageable.
 - Comprehensions fit within other code. Unlike decorators which need to exist outside a function, and transform the outer code as well.
 - There is a precident set already in Scala with "for comprehensions" doing the same thing.
