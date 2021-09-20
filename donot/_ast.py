@@ -16,11 +16,14 @@ YIELD_VALUE = dis.opmap["YIELD_VALUE"]
 RETURN_VALUE = dis.opmap["RETURN_VALUE"]
 
 
-Inputs = namedtuple("Inputs", ("names", "stack"))
-Guard = namedtuple("Guard", ("names", "inputs", "state", "start", "stack", "next"))
-FlatMapExpr = namedtuple("FlatMapExpr", ("names", "inputs", "start", "stack", "next"))
-MapExpr = namedtuple("MapExpr", ("names", "inputs", "start", "stack"))
-Execution = namedtuple("Execution", ("inputs", "guards", "expression"))
+Inputs = namedtuple("Inputs", ("names", "lnotab", "stack"))
+Guard = namedtuple(
+    "Guard", ("names", "inputs", "state", "start", "lnotab", "stack", "next")
+)
+FlatMapExpr = namedtuple(
+    "FlatMapExpr", ("names", "inputs", "start", "lnotab", "stack", "next")
+)
+MapExpr = namedtuple("MapExpr", ("names", "inputs", "start", "lnotab", "stack"))
 
 
 def parse(code):
@@ -35,8 +38,6 @@ def parse(code):
         generators typically, and for us is the expression that generates our monad value.
     MapExpr = Same as FlatMapExpr, but this is the end of the chain. We want to map over this value.
 
-    Execution = Chain of operations (above).
-
     """
     iter_bytes = _unpack_opargs(code.co_code)
     assert next(iter_bytes)[1] == LOAD_FAST
@@ -48,10 +49,13 @@ def _parse_inputs(code, iter_bytes):
     inputs = []
     bytestack = add_op([], LOAD_FAST, 0)
     num_unpack = 1
+    start_offset = 0
     while num_unpack:
         num_unpack -= 1
 
         (i, op, arg) = next(iter_bytes)
+        if not start_offset:
+            start_offset = i
         add_op(bytestack, op, arg)
         if op == STORE_FAST:
             inputs.append(code.co_varnames[arg])
@@ -59,7 +63,11 @@ def _parse_inputs(code, iter_bytes):
             num_unpack += arg
         else:
             raise AssertionError("Unexpected operation {}".format(dis.opname[op]))
-    node = Inputs(inputs, bytestack)
+    node = Inputs(
+        inputs,
+        tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
+        bytestack,
+    )
     return _parse_expression(code, iter_bytes, node)
 
 
@@ -82,6 +90,9 @@ def _parse_expression(code, iter_bytes, inputs):
                     names,
                     inputs,
                     start_offset,
+                    tuple(
+                        _get_lnotab(code, start_offset, start_offset + len(bytestack))
+                    ),
                     bytestack,
                     _parse_inputs(code, iter_bytes),
                 )
@@ -92,14 +103,21 @@ def _parse_expression(code, iter_bytes, inputs):
         if op == YIELD_VALUE:
             # We are at the end!
             add_op(bytestack, RETURN_VALUE)
-            return MapExpr(names, inputs, start_offset, bytestack)
+            return MapExpr(
+                names,
+                inputs,
+                start_offset,
+                tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
+                bytestack,
+            )
 
-        if op in dis.hasjabs and jumps_out(code.co_code, arg):
+        if op in dis.hasjabs and _jumps_out(code.co_code, arg):
             return Guard(
                 names,
                 inputs,
                 "TRUE" in dis.opname[op],
                 start_offset,
+                tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
                 bytestack,
                 _parse_expression(code, iter_bytes, inputs),
             )
@@ -107,7 +125,7 @@ def _parse_expression(code, iter_bytes, inputs):
         add_op(bytestack, op, arg)
 
 
-def jumps_out(code, arg):
+def _jumps_out(code, arg):
     # Sometimes the jump targets the FOR_ITER directly.
     # Other times there are a couple of jumps before we get there.
     while True:
@@ -118,6 +136,13 @@ def jumps_out(code, arg):
             return False
         arg = as_byte(code[arg + 1])
     raise RuntimeError("Could not determine jump target")
+
+
+def _get_lnotab(code, start_offset, stop_offset):
+    """Get absolute values for the line number table"""
+    for offset, line in dis.findlinestarts(code):
+        if offset >= start_offset and offset <= stop_offset:
+            yield offset - start_offset, line
 
 
 # Lifted from dis.disassemble

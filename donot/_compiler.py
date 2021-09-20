@@ -58,6 +58,7 @@ def compile_code(code, node):
     result = _clone_code(
         code,
         "<do_notation>",
+        (),
         add_op(new_code.stack, RETURN_VALUE),
         new_code.defaults,
     )
@@ -90,6 +91,10 @@ def _compile_flatmap(code, node, inner_code):
     new_code = _clone_code(
         code,
         "<flatmap>",
+        _retarget_lnotab(
+            node.lnotab,
+            len(node.inputs.stack),
+        ),
         chain(
             node.inputs.stack,
             node.stack,
@@ -132,6 +137,7 @@ def _compile_map(code, node):
     new_code = _clone_code(
         code,
         "<map>",
+        _retarget_lnotab(node.lnotab, len(node.inputs.stack)),
         chain(node.inputs.stack, updated_expression),
         defaults,
     )
@@ -172,6 +178,7 @@ def _compile_guard(code, node):
     new_code = _clone_code(
         code,
         "<guard>",
+        _retarget_lnotab(node.lnotab, len(node.inputs.stack)),
         chain(node.inputs.stack, updated_guard, post_stack),
         defaults,
     )
@@ -187,6 +194,11 @@ def _compile_guard(code, node):
     return FilterFunc(defaults, stack)
 
 
+def _retarget_lnotab(lnotab, instruction_offset):
+    for offset, line in lnotab:
+        yield offset + instruction_offset, line
+
+
 def _retarget_jumps(offset, stack):
     """Change absolute jump targets to match new numbering"""
     last_op = None
@@ -197,7 +209,7 @@ def _retarget_jumps(offset, stack):
         last_op = op
 
 
-def _clone_code(code, name, byte_stack, defaults):
+def _clone_code(code, name, lnotab, byte_stack, defaults):
     """Helper for building a new code object out of the old"""
     consts = list(code.co_consts)
     varnames = [".0"]
@@ -249,7 +261,7 @@ def _clone_code(code, name, byte_stack, defaults):
         code.co_filename,
         name,
         code.co_firstlineno,
-        code.co_lnotab,
+        to_bytes(_compress_lnotab(lnotab, code.co_firstlineno)),  # code.co_lnotab,
         code.co_freevars,
         code.co_cellvars,
     )
@@ -259,6 +271,20 @@ def _clone_code(code, name, byte_stack, defaults):
         args = args[:1] + args[2:]
 
     return CodeType(*args)
+
+
+def _compress_lnotab(lnotab, firstline):
+    # Return table back to its relative state
+    last_offset = 0
+    last_line = firstline
+    for offset, line in lnotab:
+        yield offset - last_offset
+        line_offset = line - last_line
+        if line_offset < 0:
+            line_offset += 0x100
+        yield line_offset
+
+        last_offset, last_line = offset, line
 
 
 # Lifted from dis.disassemble
