@@ -67,7 +67,7 @@ def compile_code(code, node):
 
 
 def _compile_node(code, node, depend):
-    defaults = tuple(a for a in depend if a not in node.inputs.names)
+    defaults = depend - node.inputs.names
 
     if isinstance(node, MapExpr):
         return _compile_map(code, node, defaults)
@@ -76,8 +76,7 @@ def _compile_node(code, node, depend):
         return _compose_two(
             code,
             _compile_guard(code, node, defaults),
-            _compile_node(code, node.next, depend.union(node.inputs.names)),
-            defaults,
+            _compile_node(code, node.next, depend | node.inputs.names),
         )
 
     if isinstance(node, FlatMapExpr):
@@ -85,7 +84,7 @@ def _compile_node(code, node, depend):
             code,
             node,
             defaults,
-            _compile_node(code, node.next, depend.union(node.inputs.names)),
+            _compile_node(code, node.next, depend | node.inputs.names),
         )
     raise TypeError("Unknown type {}".format(node))
 
@@ -121,7 +120,7 @@ def _compile_flatmap(code, node, defaults, inner_code):
     return FlatMapFunc(stack)
 
 
-def _compose_two(code, code1, code2, defaults):
+def _compose_two(code, code1, code2):
     """
     Compose two functions
     """
