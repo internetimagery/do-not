@@ -16,7 +16,7 @@ YIELD_VALUE = dis.opmap["YIELD_VALUE"]
 RETURN_VALUE = dis.opmap["RETURN_VALUE"]
 
 
-Inputs = namedtuple("Inputs", ("names", "lnotab", "stack"))
+Inputs = namedtuple("Inputs", ("names", "stack"))
 Guard = namedtuple(
     "Guard", ("names", "inputs", "state", "start", "lnotab", "stack", "next")
 )
@@ -46,7 +46,7 @@ def parse(code):
 
 def _parse_inputs(code, iter_bytes):
     assert next(iter_bytes)[1] == FOR_ITER
-    inputs = []
+    inputs = set()
     bytestack = add_op([], LOAD_FAST, 0)
     num_unpack = 1
     start_offset = 0
@@ -58,14 +58,13 @@ def _parse_inputs(code, iter_bytes):
             start_offset = i
         add_op(bytestack, op, arg)
         if op == STORE_FAST:
-            inputs.append(code.co_varnames[arg])
+            inputs.add(code.co_varnames[arg])
         elif op == UNPACK_SEQUENCE:
             num_unpack += arg
         else:
             raise AssertionError("Unexpected operation {}".format(dis.opname[op]))
     node = Inputs(
         inputs,
-        tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
         bytestack,
     )
     return _parse_expression(code, iter_bytes, node)
@@ -79,6 +78,9 @@ def _parse_expression(code, iter_bytes, inputs):
         if not start_offset:
             start_offset = idx
 
+        if op == STORE_FAST:
+            raise RuntimeError("OH NO!")
+
         if op == LOAD_FAST:
             names.add(code.co_varnames[arg])
 
@@ -90,9 +92,7 @@ def _parse_expression(code, iter_bytes, inputs):
                     names,
                     inputs,
                     start_offset,
-                    tuple(
-                        _get_lnotab(code, start_offset, start_offset + len(bytestack))
-                    ),
+                    _get_lnotab(code, start_offset, start_offset + len(bytestack)),
                     bytestack,
                     _parse_inputs(code, iter_bytes),
                 )
@@ -107,7 +107,7 @@ def _parse_expression(code, iter_bytes, inputs):
                 names,
                 inputs,
                 start_offset,
-                tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
+                _get_lnotab(code, start_offset, start_offset + len(bytestack)),
                 bytestack,
             )
 
@@ -117,7 +117,7 @@ def _parse_expression(code, iter_bytes, inputs):
                 inputs,
                 "TRUE" in dis.opname[op],
                 start_offset,
-                tuple(_get_lnotab(code, start_offset, start_offset + len(bytestack))),
+                _get_lnotab(code, start_offset, start_offset + len(bytestack)),
                 bytestack,
                 _parse_expression(code, iter_bytes, inputs),
             )
@@ -166,22 +166,17 @@ if PY2 or PY35:
         return 1
 
     def _unpack_opargs(code):
-        n = len(code)
-        i = 0
         extended_arg = 0
-        while i < n:
-            j = i
-            op = as_byte(code[i])
-            i = i + 1
+        code_iter = enumerate(as_byte(c) for c in code)
+        for i, op in code_iter:
             if op >= dis.HAVE_ARGUMENT:
-                arg = as_byte(code[i]) + as_byte(code[i + 1]) * 256 + extended_arg
+                arg = next(code_iter)[1] + next(code_iter)[1] * 256 + extended_arg
                 extended_arg = 0
-                i = i + 2
                 if op == dis.EXTENDED_ARG:
                     extended_arg = arg * 65536
             else:
                 arg = None
-            yield (j, op, arg)
+            yield i, op, arg
 
 
 else:
@@ -196,14 +191,14 @@ else:
 
     def _unpack_opargs(code):
         extended_arg = 0
-        for i in range(0, len(code), 2):
-            op = code[i]
+        code_iter = iter(code)
+        for i, (op, arg) in enumerate(zip(code_iter, code_iter)):
             if op >= dis.HAVE_ARGUMENT:
-                arg = code[i + 1] | extended_arg
+                arg |= extended_arg
                 extended_arg = (arg << 8) if op == dis.EXTENDED_ARG else 0
             else:
                 arg = None
-            yield (i, op, arg)
+            yield (i * 2, op, arg)
 
 
 if __name__ == "__main__":

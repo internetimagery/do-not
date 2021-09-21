@@ -24,17 +24,16 @@ if PY2:
 else:
     to_bytes = bytes
 
-FilterFunc = namedtuple("FilterFunc", ("defaults", "stack"))
-MapFunc = namedtuple("MapFunc", ("defaults", "stack"))
-FlatMapFunc = namedtuple("FlatMapFunc", ("defaults", "stack"))
-ComposedFunc = namedtuple("ComposedFunc", ("defaults", "stack"))
+FilterFunc = namedtuple("FilterFunc", ("stack"))
+MapFunc = namedtuple("MapFunc", ("stack"))
+FlatMapFunc = namedtuple("FlatMapFunc", ("stack"))
+ComposedFunc = namedtuple("ComposedFunc", ("stack"))
 
 INTERFACE = "Interface.Handler"
 
 MAP = "map"
 FLATMAP = "flat_map"
 FILTER = "filter"
-HANDLER_NAMES = (MAP, FLATMAP, FILTER)
 
 LOAD_FAST = dis.opmap["LOAD_FAST"]
 STORE_FAST = dis.opmap["STORE_FAST"]
@@ -54,40 +53,46 @@ CALL_FUNCTION = dis.opmap["CALL_FUNCTION"]
 
 def compile_code(code, node):
     """Parse"""
-    new_code = _compile_node(code, node)
+    # Dependency on our handler through all functions
+    defaults = frozenset([INTERFACE])
+    new_code = _compile_node(code, node, defaults)
     result = _clone_code(
         code,
         "<do_notation>",
         (),
         add_op(new_code.stack, RETURN_VALUE),
-        new_code.defaults,
+        defaults,
     )
     return result
 
 
-def _compile_node(code, node):
+def _compile_node(code, node, depend):
+    defaults = depend - node.inputs.names
+
     if isinstance(node, MapExpr):
-        return _compile_map(code, node)
+        return _compile_map(code, node, defaults)
+
     if isinstance(node, Guard):
-        # TODO: Get the input of this right... needs to be the monad itself..
         return _compose_two(
-            code, _compile_guard(code, node), _compile_node(code, node.next)
+            code,
+            _compile_guard(code, node, defaults),
+            _compile_node(code, node.next, depend | node.inputs.names),
         )
+
     if isinstance(node, FlatMapExpr):
-        return _compile_flatmap(code, node, _compile_node(code, node.next))
+        return _compile_flatmap(
+            code,
+            node,
+            defaults,
+            _compile_node(code, node.next, depend | node.inputs.names),
+        )
     raise TypeError("Unknown type {}".format(node))
 
 
-def _compile_flatmap(code, node, inner_code):
+def _compile_flatmap(code, node, defaults, inner_code):
     """
     Run inner function through flat map
     """
-    defaults = tuple(
-        a
-        for a in set(chain(node.names, inner_code.defaults))
-        if a not in node.inputs.names
-    )
-
     new_code = _clone_code(
         code,
         "<flatmap>",
@@ -112,25 +117,22 @@ def _compile_flatmap(code, node, inner_code):
     add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
-    return FlatMapFunc(defaults, stack)
+    return FlatMapFunc(stack)
 
 
 def _compose_two(code, code1, code2):
     """
     Compose two functions
     """
-    defaults = tuple(a for a in set(chain(code1.defaults, code2.defaults)))
     return ComposedFunc(
-        defaults, list(chain(code1.stack, add_op([], STORE_FAST, ".0"), code2.stack))
+        list(chain(code1.stack, add_op([], STORE_FAST, ".0"), code2.stack))
     )
 
 
-def _compile_map(code, node):
+def _compile_map(code, node, defaults):
     """
     Create code for the final "map" operation.
     """
-    defaults = (INTERFACE,) + tuple(a for a in node.names if a not in node.inputs.names)
-
     updated_expression = _retarget_jumps(
         node.start - len(node.inputs.stack), node.stack
     )
@@ -149,15 +151,13 @@ def _compile_map(code, node):
     add_op(stack, GET_ITER)
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
-    return MapFunc(defaults, stack)
+    return MapFunc(stack)
 
 
-def _compile_guard(code, node):
+def _compile_guard(code, node, defaults):
     """
     Create code out of a guard, translates into "filter" code.
     """
-    defaults = tuple(a for a in node.names if a not in node.inputs.names)
-
     updated_guard = _retarget_jumps(node.start - len(node.inputs.stack), node.stack)
 
     post_stack = []
@@ -191,7 +191,7 @@ def _compile_guard(code, node):
     stack.extend(_make_function(code, new_code))
     add_op(stack, CALL_FUNCTION, 3)
 
-    return FilterFunc(defaults, stack)
+    return FilterFunc(stack)
 
 
 def _retarget_lnotab(lnotab, instruction_offset):

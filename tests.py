@@ -63,7 +63,12 @@ class Reader:
 
 class TestDoNot(unittest.TestCase):
     def test_simple(self):
-        val = do((v1, v2, v3) for v1 in Just(10) for v2 in Just(20) for v3 in Just(30))
+        val = do(
+            (v1, v2, v3)
+            for v1 in Just(10)
+            for v2 in Just(20)
+            for v3 in Just(30)
+        )
         self.assertEqual(val, Just((10, 20, 30)))
 
     def test_nothing(self):
@@ -89,7 +94,7 @@ class TestDoNot(unittest.TestCase):
             (v1, v2, v3)
             for v1 in Just(10)
             for v2 in Just(20)
-            if not v2
+            if v2 + v1 > 40
             for v3 in Just(30)
         )
         self.assertEqual(val, Nothing())
@@ -209,6 +214,16 @@ class TestDoNot(unittest.TestCase):
         self.assertEqual(test(16), Nothing())
         self.assertEqual(test(20), Just(20))
 
+    def test_outerscope(self):
+        # TODO: figure out a good approach to access nonlocal variables
+        # like this. Specifically ones that are overridden with locals.
+        with self.assertRaises(UnboundLocalError):
+            v2 = 10
+            val = do(
+                v1 + v2
+                for v1 in Just(10)
+                for v2 in Just(v2)
+            )
 
 if __name__ == "__main__":
     unittest.main()
