@@ -46,7 +46,7 @@ def parse(code):
 
 def _parse_inputs(code, iter_bytes):
     assert next(iter_bytes)[1] == FOR_ITER
-    inputs = []
+    inputs = set()
     bytestack = add_op([], LOAD_FAST, 0)
     num_unpack = 1
     start_offset = 0
@@ -58,7 +58,7 @@ def _parse_inputs(code, iter_bytes):
             start_offset = i
         add_op(bytestack, op, arg)
         if op == STORE_FAST:
-            inputs.append(code.co_varnames[arg])
+            inputs.add(code.co_varnames[arg])
         elif op == UNPACK_SEQUENCE:
             num_unpack += arg
         else:
@@ -77,6 +77,9 @@ def _parse_expression(code, iter_bytes, inputs):
     for idx, op, arg in iter_bytes:
         if not start_offset:
             start_offset = idx
+
+        if op == STORE_FAST:
+            raise RuntimeError("OH NO!")
 
         if op == LOAD_FAST:
             names.add(code.co_varnames[arg])
