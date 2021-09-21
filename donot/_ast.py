@@ -163,22 +163,17 @@ if PY2 or PY35:
         return 1
 
     def _unpack_opargs(code):
-        n = len(code)
-        i = 0
         extended_arg = 0
-        while i < n:
-            j = i
-            op = as_byte(code[i])
-            i = i + 1
+        code_iter = enumerate(as_byte(c) for c in code)
+        for i, op in code_iter:
             if op >= dis.HAVE_ARGUMENT:
-                arg = as_byte(code[i]) + as_byte(code[i + 1]) * 256 + extended_arg
+                arg = next(code_iter)[1] + next(code_iter)[1] * 256 + extended_arg
                 extended_arg = 0
-                i = i + 2
                 if op == dis.EXTENDED_ARG:
                     extended_arg = arg * 65536
             else:
                 arg = None
-            yield (j, op, arg)
+            yield i, op, arg
 
 
 else:
@@ -200,7 +195,7 @@ else:
                 extended_arg = (arg << 8) if op == dis.EXTENDED_ARG else 0
             else:
                 arg = None
-            yield (i*2, op, arg)
+            yield (i * 2, op, arg)
 
 
 if __name__ == "__main__":
