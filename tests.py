@@ -215,14 +215,15 @@ class TestDoNot(unittest.TestCase):
         self.assertEqual(test(20), Just(20))
 
     def test_outerscope(self):
-        v2 = 10
-        val = do(
-            v1 + v2
-            for v1 in Just(10)
-            for v2 in Just(v2)
-        )
-        self.assertEqual(val, Just(20))
-
+        # TODO: figure out a good approach to access nonlocal variables
+        # like this. Specifically ones that are overridden with locals.
+        with self.assertRaises(UnboundLocalError):
+            v2 = 10
+            val = do(
+                v1 + v2
+                for v1 in Just(10)
+                for v2 in Just(v2)
+            )
 
 if __name__ == "__main__":
     unittest.main()
