@@ -18,7 +18,7 @@ _CACHE = WeakKeyDictionary()
 
 def do(generator, handler=None):
     """
-    Simple do notation for python monads.
+    Simple do notation for python monads:
 
     >>> val = do(
     >>>     v1 + v2
@@ -27,22 +27,7 @@ def do(generator, handler=None):
     >>> )
     >>> assert val == Just(30)
 
-    Desugared:
-
-    >>> Just(10).flat_map(lambda v1:
-    >>>     Just(20).flat_map(lambda v2, v1=v1:
-    >>>         Just.pure(v1 + v2)))
-
-    if-expressions in the final expression work as expected
-
-    >>> val = do(
-    >>>     "yes" if v > 10 else "no"
-    >>>     for v in Just(11)
-    >>> )
-    >>> assert val == Just("yes")
-
-    if-expressions in the body call the filter interface. A TypeError
-    is raised if this is not supplied for the monad in use.
+    if-expressions in the body of the comprehension call the filter interface:
 
     >>> val = do(
     >>>     v1 + v2
@@ -52,11 +37,24 @@ def do(generator, handler=None):
     >>> )
     >>> assert val == Nothing() # Last value returned before if-expression
 
+    Desugared:
+
+    >>> (
+    >>>     Just(10)
+    >>>     .filter(lambda v1: v1 > 20)
+    >>>     .flat_map(lambda v1:
+    >>>         Just(20).map(lambda v2, v1=v1:
+    >>>             v1 + v2
+    >>>         )
+    >>>     )
+    >>> )
+
+
     Assignments (let val = <expr>) don't work, and neither does mapping due to the limited syntax
     of the comprehension language. However they can still be wrapped in the monadic
     structure and then flatmapped by the expression.
 
-    >>> add_one = lambda a: a + 1
+    >>> add_one = lambda a: a + 1 # Does not return a monad directly.
     >>> val = do(
     >>>     v2
     >>>     for v1 in Just(1)
@@ -64,15 +62,15 @@ def do(generator, handler=None):
     >>> )
     >>> assert val == Just(2)
 
-    Since we cannot type higher kinded types correctly. A parameter exists
-    in order to force the return type. Note the return type is not checked in this case.
+    Static typing also works, if supported by the monadic structures using the tool.
+    However the return type cannot at this stage be inferred. So it's best to annotate when possible.
 
-    >>> val = do((v for v in Just(123)), Just[int])
+    >>> val: Just[int] = do(v for v in Just(123))
     >>> reveal_type(val) # Note: Revealed type "Just[int]"
 
-    This notation extension does not attempt to impliment a suite of monadic tooling to fit
+    This utility does not attempt to impliment a suite of monadic tooling to fit
     its structure. Instead to support this notation in your monads,
-    they need to expose their interface through iter.
+    they need to expose their interface through __iter__.
     This should be fairly simple to achieve and allows it to be relatively interface
     agnostic (how many ways can we name "bind"? methods or functions?).
 
@@ -82,7 +80,7 @@ def do(generator, handler=None):
     >>>     yield {
     >>>         "map": self.map, # fmap etc ...
     >>>         "flat_map": self.flat_map, # chain # and_then # bind # etc...
-    >>>         "filter": self.filter # Optional, only if monad supports it.
+    >>>         "filter": self.filter # Required only if monad supports it. For many it makes no sense.
     >>>     }
     """
     try:
