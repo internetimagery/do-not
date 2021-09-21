@@ -63,7 +63,12 @@ class Reader:
 
 class TestDoNot(unittest.TestCase):
     def test_simple(self):
-        val = do((v1, v2, v3) for v1 in Just(10) for v2 in Just(20) for v3 in Just(30))
+        val = do(
+            (v1, v2, v3)
+            for v1 in Just(10)
+            for v2 in Just(20)
+            for v3 in Just(30)
+        )
         self.assertEqual(val, Just((10, 20, 30)))
 
     def test_nothing(self):
@@ -208,6 +213,15 @@ class TestDoNot(unittest.TestCase):
         self.assertEqual(test(3), Nothing())
         self.assertEqual(test(16), Nothing())
         self.assertEqual(test(20), Just(20))
+
+    def test_outerscope(self):
+        v2 = 10
+        val = do(
+            v1 + v2
+            for v1 in Just(10)
+            for v2 in Just(v2)
+        )
+        self.assertEqual(val, Just(20))
 
 
 if __name__ == "__main__":
