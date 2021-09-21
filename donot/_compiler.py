@@ -34,7 +34,6 @@ INTERFACE = "Interface.Handler"
 MAP = "map"
 FLATMAP = "flat_map"
 FILTER = "filter"
-HANDLER_NAMES = (MAP, FLATMAP, FILTER)
 
 LOAD_FAST = dis.opmap["LOAD_FAST"]
 STORE_FAST = dis.opmap["STORE_FAST"]
