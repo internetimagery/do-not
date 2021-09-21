@@ -379,7 +379,16 @@ assert result.lst = [v1+v2 for v1 in [1,2,3] for v2 in [4,5,6]]
 - Document things internally more clearly.
 - Work on a static typing solution for return values. Thankfully internal values can be easily typed, but without higher kinded types the return value cannot be easily checked.
 - Build a decorator that can pre-compile "do" generators (does it make sense to compile all generators?).
-- Support walrus assignments in "guard" expressions. ie ```do(v1 + v2 for v1 in Just(10) if (v2 := v1 + 10))```
+- Figure out a way to access nonlocal variables that shadow local ones
+- Support walrus assignments in "guard" expressions. ie
+
+```python
+do(
+    v1 + v2
+    for v1 in Just(10)
+    if (v2 := v1 + 10) # This assignment works in regular list expressions but if it resides within the "guard" function, which only returns a boolean. How shold this value be propagated?
+)
+```
 
 ----
 
